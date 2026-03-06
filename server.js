@@ -15,7 +15,8 @@ const app = express();
 app.use(cors({
   origin: [
     "http://localhost:5173",
-    process.env.FRONTEND_URL
+    "https://billingsoftware-frontend.vercel.app",
+    "https://radnus-billingsoftware-frontend.vercel.app"
   ],
   credentials: true
 }));
