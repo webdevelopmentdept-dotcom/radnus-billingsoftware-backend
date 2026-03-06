@@ -77,12 +77,12 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
       idProofType
     } = req.body;
 
-    const customer = JSON.parse(req.body.customer);
-    const device = JSON.parse(req.body.device);
-    const service = JSON.parse(req.body.service);
-    const physicalCondition = JSON.parse(req.body.physicalCondition);
-    const accessories = JSON.parse(req.body.accessories);
-    const visualIssues = JSON.parse(req.body.visualIssues);
+   const customer = JSON.parse(req.body.customer || "{}");
+const device = JSON.parse(req.body.device || "{}");
+const service = JSON.parse(req.body.service || "{}");
+const physicalCondition = JSON.parse(req.body.physicalCondition || "{}");
+const accessories = JSON.parse(req.body.accessories || "{}");
+const visualIssues = JSON.parse(req.body.visualIssues || "{}");
     const spareItems = JSON.parse(req.body.spareItems || "[]");
 
     const createdBy = JSON.parse(req.body.createdBy || "{}");
