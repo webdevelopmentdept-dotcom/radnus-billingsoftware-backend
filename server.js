@@ -4,16 +4,22 @@ const cors = require("cors");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
+const dns = require("dns");
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
+
 const connectDB = require("./config/db");
 const makeRoutes = require("./routes/makeRoutes");
-
-
-
-
 const app = express();
 
 // ================= MIDDLEWARE =================
-app.use(cors({ origin: "http://localhost:5173" }));
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    process.env.FRONTEND_URL
+  ],
+  credentials: true
+}));
+
 app.use(express.json());
 
 // ================= DB CONNECT =================

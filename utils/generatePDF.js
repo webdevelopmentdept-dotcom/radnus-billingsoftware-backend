@@ -1,13 +1,18 @@
 const puppeteer = require("puppeteer");
 
-const generatePDF = async (id) => {
+const generateInvoicePDF = async (id) => {
+
   const browser = await puppeteer.launch({
     headless: "new",
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox"
+    ]
   });
 
   const page = await browser.newPage();
 
-  await page.goto(`http://localhost:5173/estimate-bill/${id}`, {
+  await page.goto(`${process.env.FRONTEND_URL}/invoice/${id}`, {
     waitUntil: "networkidle0",
   });
 
@@ -21,4 +26,4 @@ const generatePDF = async (id) => {
   return pdf;
 };
 
-module.exports = generatePDF;
+module.exports = generateInvoicePDF;

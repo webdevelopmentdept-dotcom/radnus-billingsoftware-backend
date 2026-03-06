@@ -8,7 +8,7 @@ const generateInvoicePDF = async (id) => {
   const page = await browser.newPage();
 
   // 🔥 invoice URL
-  await page.goto(`http://localhost:5173/invoice/${id}`, {
+  await page.goto(`${process.env.FRONTEND_URL}/invoice/${id}`, {
     waitUntil: "networkidle0",
   });
 
