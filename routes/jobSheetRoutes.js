@@ -129,7 +129,10 @@ Dear ${job.customer.name},
 Your device service has been completed.
 
 Invoice No: ${job.jobSheetNo}
-Total Amount: ₹${job.service?.serviceCharge + job.service?.spareCharge}
+Total Amount: ₹${
+  Number(job.service?.serviceCharge || 0) +
+  Number(job.service?.spareCharge || 0)
+}
 
 Thank you for choosing Radnus Communication.
 `;
@@ -146,10 +149,13 @@ Thank you for choosing Radnus Communication.
     res.json({ message: "Invoice sent successfully ✅" });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Email failed ❌" });
-  }
-});
+  console.error("SEND INVOICE ERROR:", err);
+
+  res.status(500).json({
+    message: err.message,
+    stack: err.stack
+  });
+}
 
 // ================= 🔒 INVOICE LOCK =================
 router.put("/:id/invoice", async (req, res) => {
