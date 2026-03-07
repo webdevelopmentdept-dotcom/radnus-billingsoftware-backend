@@ -6,20 +6,23 @@ const generateInvoicePDF = async (id) => {
     headless: "new",
     args: [
       "--no-sandbox",
-      "--disable-setuid-sandbox"
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu"
     ],
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
   });
 
   const page = await browser.newPage();
 
-  await page.goto(`${process.env.FRONTEND_URL}/invoice/${id}`, {
-    waitUntil: "networkidle0",
-  });
+  await page.goto(
+    `${process.env.FRONTEND_URL}/invoice/${id}`,
+    { waitUntil: "networkidle0" }
+  );
 
   const pdf = await page.pdf({
     format: "A4",
-    printBackground: true,
+    printBackground: true
   });
 
   await browser.close();

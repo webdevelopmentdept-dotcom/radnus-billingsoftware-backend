@@ -185,6 +185,6 @@ RADNUS COMMUNICATION
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Email failed ❌" });
+    res.status(500).json({ message: err.message });
   }
 };

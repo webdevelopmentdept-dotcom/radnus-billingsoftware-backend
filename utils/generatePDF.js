@@ -15,14 +15,14 @@ const generatePDF = async (id) => {
 
   const page = await browser.newPage();
 
-  // Estimate page URL
-  await page.goto(`${process.env.FRONTEND_URL}/estimate-bill/${id}`, {
-    waitUntil: "networkidle0",
-  });
+  await page.goto(
+    `${process.env.FRONTEND_URL}/estimate-bill/${id}`,
+    { waitUntil: "networkidle0" }
+  );
 
   const pdf = await page.pdf({
     format: "A4",
-    printBackground: true,
+    printBackground: true
   });
 
   await browser.close();
