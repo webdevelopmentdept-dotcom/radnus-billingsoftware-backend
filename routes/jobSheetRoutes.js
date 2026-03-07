@@ -96,7 +96,7 @@ const visualIssues = JSON.parse(req.body.visualIssues || "{}");
       visualIssues,
         spareItems,
       idProofType,
-      idProofImage: req.file ? req.file.filename : null,
+      idProofImage: req.file ? req.file.path : null,
       createdBy
     });
 

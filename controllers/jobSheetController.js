@@ -16,7 +16,7 @@ exports.createJobSheet = async (req, res) => {
       visualIssues: JSON.parse(req.body.visualIssues || "[]"),
 
       idProofType: req.body.idProofType,
-      idProofImage: req.file?.filename || "",
+      idProofImage: req.file?.path || "",
 
       service: JSON.parse(req.body.service || "{}"),
       createdBy: JSON.parse(req.body.createdBy || "{}"),
@@ -110,7 +110,7 @@ exports.updateJobSheet = async (req, res) => {
     };
 
     if (req.file) {
-      updateData.idProofImage = req.file.filename;
+      updateData.idProofImage = req.file.path;
     }
 
     const updated = await JobSheet.findByIdAndUpdate(

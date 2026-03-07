@@ -24,15 +24,15 @@ app.use(cors({
 app.use(express.json());
 
 
-const fs = require("fs");
-const path = require("path");
+// const fs = require("fs");
+// const path = require("path");
 
-const uploadDir = path.join(__dirname, "uploads");
+// const uploadDir = path.join(__dirname, "uploads");
 
-// Create uploads folder if it doesn't exist
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// // Create uploads folder if it doesn't exist
+// if (!fs.existsSync(uploadDir)) {
+//   fs.mkdirSync(uploadDir, { recursive: true });
+// }
 
 // ================= DB CONNECT =================
 connectDB();
@@ -162,7 +162,7 @@ app.post("/api/login", async (req, res) => {
 
 // ================= JOB SHEET ROUTES =================
 app.use("/api/jobsheets", require("./routes/jobSheetRoutes"));
-app.use("/uploads", express.static("uploads"));
+// app.use("/uploads", express.static("uploads"));
 app.use("/api/models", require("./routes/modelRoutes"));
 app.use("/api/faults", require("./routes/faultRoutes"));
 app.use("/api/drawers", require("./routes/drawerRoutes"));
