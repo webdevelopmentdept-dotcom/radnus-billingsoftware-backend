@@ -310,6 +310,26 @@ router.get("/spare-report", async (req, res) => {
 //   res.json(data);
 // });
 
+router.get("/next-number", async (req, res) => {
+  try {
+    const lastJob = await JobSheet.findOne().sort({ createdAt: -1 });
+
+    if (!lastJob) {
+      return res.json({ next: "JS-001" });
+    }
+
+    const lastNumber = parseInt(lastJob.jobSheetNo.split("-")[1]);
+    const nextNumber = lastNumber + 1;
+
+    const formatted = `JS-${String(nextNumber).padStart(3, "0")}`;
+
+    res.json({ next: formatted });
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 router.get("/:id", getJobSheetById);
 router.put("/:id", updateJobSheet);
 router.post("/send-estimate/:id", sendEstimateEmail);
