@@ -4,9 +4,7 @@ const generateInvoicePDF = async (id) => {
 
   const browser = await puppeteer.launch({
     headless: true,
-
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -17,13 +15,16 @@ const generateInvoicePDF = async (id) => {
 
   const page = await browser.newPage();
 
-  await page.goto(`${process.env.FRONTEND_URL}/invoice/${id}`, {
+  const url = `${process.env.FRONTEND_URL}/invoice/${id}`;
+
+  await page.goto(url, {
     waitUntil: "networkidle0",
+    timeout: 0
   });
 
   const pdf = await page.pdf({
     format: "A4",
-    printBackground: true,
+    printBackground: true
   });
 
   await browser.close();

@@ -287,8 +287,6 @@ router.put("/:id/spares", async (req, res) => {
 
 });
 
-
-
 /* =====================================================
    SPARE REPORT
 ===================================================== */
@@ -356,8 +354,6 @@ router.get("/spare-report", async (req, res) => {
 
 });
 
-
-
 /* =====================================================
    NEXT JOB NUMBER
 ===================================================== */
@@ -387,8 +383,6 @@ router.get("/next-number", async (req, res) => {
 
 });
 
-
-
 /* =====================================================
    BASIC ROUTES
 ===================================================== */
@@ -398,7 +392,5 @@ router.get("/:id", getJobSheetById);
 router.put("/:id", updateJobSheet);
 
 router.post("/send-estimate/:id", sendEstimateEmail);
-
-
 
 module.exports = router;
