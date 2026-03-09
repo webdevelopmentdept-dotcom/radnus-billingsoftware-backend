@@ -4,7 +4,7 @@ const generatePDF = async (id) => {
 
   const browser = await puppeteer.launch({
     headless: "new",
-    executablePath: puppeteer.executablePath(),   // IMPORTANT
+    executablePath: puppeteer.executablePath(),
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -16,10 +16,7 @@ const generatePDF = async (id) => {
 
   await page.goto(
     `${process.env.FRONTEND_URL}/estimate-bill/${id}`,
-    {
-      waitUntil: "networkidle2",
-      timeout: 0
-    }
+    { waitUntil: "networkidle2", timeout: 0 }
   );
 
   const pdf = await page.pdf({
