@@ -1,48 +1,29 @@
-const nodemailer = require("nodemailer");
+const { Resend } = require('resend');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendEmail = async (to, subject, text, pdfBuffer, fileName) => {
-
   try {
 
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-
-    const mailOptions = {
-      from: `"RADNUS" <${process.env.EMAIL_USER}>`,
-      to: to,
+    await resend.emails.send({
+      from: 'RADNUS <onboarding@resend.dev>',
+      to: [to],
       subject: subject,
       text: text,
-    };
-
-    /* attach pdf if exists */
-    if (pdfBuffer) {
-      mailOptions.attachments = [
+      attachments: [
         {
           filename: fileName || "file.pdf",
           content: pdfBuffer,
         },
-      ];
-    }
+      ],
+    });
 
-    const info = await transporter.sendMail(mailOptions);
-
-    console.log("Email sent:", info.response);
+    console.log("Email sent successfully ✅");
 
   } catch (error) {
-
     console.error("EMAIL ERROR:", error);
-
     throw error;
-
   }
-
 };
 
 module.exports = sendEmail;
