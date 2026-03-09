@@ -8,13 +8,10 @@ const generateInvoicePDF = require("../utils/generateInvoicePDF");
 const sendEmail = require("../utils/sendEmail");
 
 const {
-  createJobSheet,
-  getJobSheets,
   sendEstimateEmail,
   updateJobSheet,
   getJobSheetById
 } = require("../controllers/jobSheetController");
-
 
 
 /* =====================================================
@@ -22,6 +19,7 @@ const {
 ===================================================== */
 router.get("/filter", async (req, res) => {
   try {
+
     const { status, fromDate, toDate, q, engineer, dealer } = req.query;
 
     let query = {};
@@ -44,6 +42,7 @@ router.get("/filter", async (req, res) => {
     }
 
     if (fromDate || toDate) {
+
       query.createdAt = {};
 
       if (fromDate) {
@@ -57,6 +56,7 @@ router.get("/filter", async (req, res) => {
         end.setHours(23, 59, 59, 999);
         query.createdAt.$lte = end;
       }
+
     }
 
     const data = await JobSheet.find(query).sort({ createdAt: -1 });
@@ -64,11 +64,13 @@ router.get("/filter", async (req, res) => {
     res.json(data);
 
   } catch (err) {
+
     console.error("FILTER ERROR:", err);
+
     res.status(500).json({ message: err.message });
+
   }
 });
-
 
 
 /* =====================================================
@@ -91,6 +93,7 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
     const createdBy = JSON.parse(req.body.createdBy || "{}");
 
     const newJob = new JobSheet({
+
       jobSheetNo: req.body.jobSheetNo,
       customer,
       device,
@@ -99,9 +102,13 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
       accessories,
       visualIssues,
       spareItems,
+
       idProofType: req.body.idProofType,
+
       idProofImage: req.file ? req.file.path : null,
+
       createdBy
+
     });
 
     await newJob.save();
@@ -109,12 +116,14 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
     res.status(201).json(newJob);
 
   } catch (err) {
+
     console.error("CREATE ERROR:", err);
+
     res.status(500).json({ message: err.message });
+
   }
 
 });
-
 
 
 /* =====================================================
@@ -142,7 +151,6 @@ router.post("/send-invoice/:id", async (req, res) => {
       Number(job.service?.serviceCharge || 0) +
       Number(job.service?.spareCharge || 0);
 
-    /* email content */
     const subject = `Invoice - ${job.jobSheetNo}`;
 
     const text = `
@@ -156,7 +164,6 @@ Total Amount: ₹${total}
 Thank you for choosing Radnus Communication.
 `;
 
-    /* send mail */
     await sendEmail(
       job.customer.email,
       subject,
@@ -171,14 +178,11 @@ Thank you for choosing Radnus Communication.
 
     console.error("SEND INVOICE ERROR:", err);
 
-    res.status(500).json({
-      message: err.message
-    });
+    res.status(500).json({ message: err.message });
 
   }
 
 });
-
 
 
 /* =====================================================
@@ -203,55 +207,11 @@ router.put("/:id/invoice", async (req, res) => {
 
     console.error("LOCK ERROR:", err);
 
-    res.status(500).json({
-      message: "Error locking invoice"
-    });
+    res.status(500).json({ message: "Error locking invoice" });
 
   }
 
 });
-
-
-
-/* =====================================================
-   USER REPORT
-===================================================== */
-router.get("/user-report", async (req, res) => {
-
-  try {
-
-    const { jobSheetNo } = req.query;
-
-    let filter = {};
-
-    if (jobSheetNo) {
-      filter.jobSheetNo = { $regex: jobSheetNo, $options: "i" };
-    }
-
-    const jobs = await JobSheet.find(filter).sort({ createdAt: -1 });
-
-    const grouped = {};
-
-    jobs.forEach(job => {
-
-      const user = job.createdBy?.username || "Unknown";
-
-      if (!grouped[user]) grouped[user] = [];
-
-      grouped[user].push(job);
-
-    });
-
-    res.json(grouped);
-
-  } catch (err) {
-
-    res.status(500).json({ message: err.message });
-
-  }
-
-});
-
 
 
 /* =====================================================
@@ -289,73 +249,6 @@ router.put("/:id/spares", async (req, res) => {
 
 
 /* =====================================================
-   SPARE REPORT
-===================================================== */
-router.get("/spare-report", async (req, res) => {
-
-  try {
-
-    const { engineer, fromDate, toDate } = req.query;
-
-    let query = {};
-
-    if (engineer) query["service.engineer"] = engineer;
-
-    if (fromDate || toDate) {
-
-      query.createdAt = {};
-
-      if (fromDate) {
-        const start = new Date(fromDate);
-        start.setHours(0, 0, 0, 0);
-        query.createdAt.$gte = start;
-      }
-
-      if (toDate) {
-        const end = new Date(toDate);
-        end.setHours(23, 59, 59, 999);
-        query.createdAt.$lte = end;
-      }
-
-    }
-
-    const jobs = await JobSheet.find(query).sort({ createdAt: -1 });
-
-    const report = [];
-
-    jobs.forEach(job => {
-
-      if (!job.spareItems) return;
-
-      job.spareItems.forEach(spare => {
-
-        report.push({
-          jobSheetNo: job.jobSheetNo,
-          date: job.createdAt,
-          engineer: job.service?.engineer,
-          dealer: job.service?.dealer,
-          customer: job.customer?.name,
-          spareName: spare.name,
-          qty: spare.qty,
-          rate: spare.rate,
-          amount: spare.amount
-        });
-
-      });
-
-    });
-
-    res.json(report);
-
-  } catch (err) {
-
-    res.status(500).json({ error: err.message });
-
-  }
-
-});
-
-/* =====================================================
    NEXT JOB NUMBER
 ===================================================== */
 router.get("/next-number", async (req, res) => {
@@ -384,6 +277,7 @@ router.get("/next-number", async (req, res) => {
 
 });
 
+
 /* =====================================================
    BASIC ROUTES
 ===================================================== */
@@ -393,5 +287,6 @@ router.get("/:id", getJobSheetById);
 router.put("/:id", updateJobSheet);
 
 router.post("/send-estimate/:id", sendEstimateEmail);
+
 
 module.exports = router;
