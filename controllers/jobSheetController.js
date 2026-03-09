@@ -50,8 +50,7 @@ exports.getJobSheets = async (req, res) => {
 
   try {
 
-    const jobs = await JobSheet.find()
-      .sort({ createdAt: -1 });
+    const jobs = await JobSheet.find().sort({ createdAt: -1 });
 
     res.json(jobs);
 
@@ -107,11 +106,9 @@ exports.updateJobSheet = async (req, res) => {
 
     /* 🔒 LOCK CHECK */
     if (job.isInvoiced) {
-
       return res.status(400).json({
         message: "Cannot edit after invoice generated 🔒"
       });
-
     }
 
     const updateData = {
@@ -151,9 +148,7 @@ exports.updateJobSheet = async (req, res) => {
     };
 
     if (req.file) {
-
       updateData.idProofImage = req.file.path;
-
     }
 
     const updated = await JobSheet.findByIdAndUpdate(
@@ -192,19 +187,15 @@ exports.sendEstimateEmail = async (req, res) => {
     console.log("STEP 2 - JOB FETCHED");
 
     if (!job) {
-
       return res.status(404).json({
         message: "Job not found"
       });
-
     }
 
     if (!job.customer?.email) {
-
       return res.status(400).json({
         message: "Customer email not available"
       });
-
     }
 
     console.log("STEP 3 - GENERATING PDF");
@@ -212,11 +203,9 @@ exports.sendEstimateEmail = async (req, res) => {
     const pdfBuffer = await generatePDF(job._id);
 
     if (!pdfBuffer) {
-
       return res.status(500).json({
         message: "PDF generation failed"
       });
-
     }
 
     console.log("STEP 4 - PDF GENERATED");

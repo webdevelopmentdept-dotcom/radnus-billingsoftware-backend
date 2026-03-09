@@ -1,7 +1,9 @@
 const nodemailer = require("nodemailer");
 
-const sendEmail = async (to, subject, text, pdfBuffer, fileName = "file.pdf") => {
+const sendEmail = async (to, subject, text, pdfBuffer, fileName) => {
+
   try {
+
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -10,24 +12,35 @@ const sendEmail = async (to, subject, text, pdfBuffer, fileName = "file.pdf") =>
       },
     });
 
-    const info = await transporter.sendMail({
-      from: `RADNUS <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      text,
-      attachments: [
+    const mailOptions = {
+      from: `"RADNUS" <${process.env.EMAIL_USER}>`,
+      to: to,
+      subject: subject,
+      text: text,
+    };
+
+    /* attach pdf if exists */
+    if (pdfBuffer) {
+      mailOptions.attachments = [
         {
-          filename: fileName,
+          filename: fileName || "file.pdf",
           content: pdfBuffer,
         },
-      ],
-    });
+      ];
+    }
 
-    console.log("Email sent:", info.messageId);
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log("Email sent:", info.response);
+
   } catch (error) {
-    console.error("Email error:", error);
+
+    console.error("EMAIL ERROR:", error);
+
     throw error;
+
   }
+
 };
 
 module.exports = sendEmail;
