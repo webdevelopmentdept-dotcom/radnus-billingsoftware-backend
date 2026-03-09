@@ -34,7 +34,6 @@ router.get("/filter", async (req, res) => {
     }
 
     if (status) query["device.mobileStatus"] = status;
-
     if (engineer) query["service.engineer"] = engineer;
 
     if (dealer) {
@@ -47,19 +46,21 @@ router.get("/filter", async (req, res) => {
 
       if (fromDate) {
         const start = new Date(fromDate);
-        start.setHours(0, 0, 0, 0);
+        start.setHours(0,0,0,0);
         query.createdAt.$gte = start;
       }
 
       if (toDate) {
         const end = new Date(toDate);
-        end.setHours(23, 59, 59, 999);
+        end.setHours(23,59,59,999);
         query.createdAt.$lte = end;
       }
 
     }
 
-    const data = await JobSheet.find(query).sort({ createdAt: -1 });
+    const data = await JobSheet
+      .find(query)
+      .sort({ createdAt: -1 });
 
     res.json(data);
 
@@ -67,7 +68,9 @@ router.get("/filter", async (req, res) => {
 
     console.error("FILTER ERROR:", err);
 
-    res.status(500).json({ message: err.message });
+    res.status(500).json({
+      message: err.message
+    });
 
   }
 });
@@ -80,34 +83,25 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
 
   try {
 
-    const customer = JSON.parse(req.body.customer || "{}");
-    const device = JSON.parse(req.body.device || "{}");
-    const service = JSON.parse(req.body.service || "{}");
-
-    const physicalCondition = JSON.parse(req.body.physicalCondition || "{}");
-    const accessories = JSON.parse(req.body.accessories || "{}");
-    const visualIssues = JSON.parse(req.body.visualIssues || "{}");
-
-    const spareItems = JSON.parse(req.body.spareItems || "[]");
-
-    const createdBy = JSON.parse(req.body.createdBy || "{}");
-
     const newJob = new JobSheet({
 
       jobSheetNo: req.body.jobSheetNo,
-      customer,
-      device,
-      service,
-      physicalCondition,
-      accessories,
-      visualIssues,
-      spareItems,
+
+      customer: JSON.parse(req.body.customer || "{}"),
+      device: JSON.parse(req.body.device || "{}"),
+      service: JSON.parse(req.body.service || "{}"),
+
+      physicalCondition: JSON.parse(req.body.physicalCondition || "{}"),
+      accessories: JSON.parse(req.body.accessories || "{}"),
+      visualIssues: JSON.parse(req.body.visualIssues || "{}"),
+
+      spareItems: JSON.parse(req.body.spareItems || "[]"),
 
       idProofType: req.body.idProofType,
 
       idProofImage: req.file ? req.file.path : null,
 
-      createdBy
+      createdBy: JSON.parse(req.body.createdBy || "{}")
 
     });
 
@@ -119,7 +113,9 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
 
     console.error("CREATE ERROR:", err);
 
-    res.status(500).json({ message: err.message });
+    res.status(500).json({
+      message: err.message
+    });
 
   }
 
@@ -136,17 +132,19 @@ router.post("/send-invoice/:id", async (req, res) => {
     const job = await JobSheet.findById(req.params.id);
 
     if (!job) {
-      return res.status(404).json({ message: "Job not found" });
+      return res.status(404).json({
+        message: "Job not found"
+      });
     }
 
     if (!job.customer?.email) {
-      return res.status(400).json({ message: "Customer email not available" });
+      return res.status(400).json({
+        message: "Customer email not available"
+      });
     }
 
-    /* generate PDF */
     const pdfBuffer = await generateInvoicePDF(job._id);
 
-    /* total calculation */
     const total =
       Number(job.service?.serviceCharge || 0) +
       Number(job.service?.spareCharge || 0);
@@ -172,13 +170,17 @@ Thank you for choosing Radnus Communication.
       `Invoice-${job.jobSheetNo}.pdf`
     );
 
-    res.json({ message: "Invoice sent successfully ✅" });
+    res.json({
+      message: "Invoice sent successfully ✅"
+    });
 
   } catch (err) {
 
     console.error("SEND INVOICE ERROR:", err);
 
-    res.status(500).json({ message: err.message });
+    res.status(500).json({
+      message: err.message
+    });
 
   }
 
@@ -207,7 +209,9 @@ router.put("/:id/invoice", async (req, res) => {
 
     console.error("LOCK ERROR:", err);
 
-    res.status(500).json({ message: "Error locking invoice" });
+    res.status(500).json({
+      message: "Error locking invoice"
+    });
 
   }
 
@@ -241,7 +245,9 @@ router.put("/:id/spares", async (req, res) => {
 
   } catch (err) {
 
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message
+    });
 
   }
 
@@ -255,23 +261,30 @@ router.get("/next-number", async (req, res) => {
 
   try {
 
-    const lastJob = await JobSheet.findOne().sort({ createdAt: -1 });
+    const lastJob = await JobSheet
+      .findOne()
+      .sort({ createdAt: -1 });
 
     if (!lastJob) {
       return res.json({ next: "JS-001" });
     }
 
-    const lastNumber = parseInt(lastJob.jobSheetNo.split("-")[1]);
+    const lastNumber = parseInt(
+      lastJob.jobSheetNo.split("-")[1]
+    );
 
     const nextNumber = lastNumber + 1;
 
-    const formatted = `JS-${String(nextNumber).padStart(3, "0")}`;
+    const formatted =
+      `JS-${String(nextNumber).padStart(3, "0")}`;
 
     res.json({ next: formatted });
 
   } catch (err) {
 
-    res.status(500).json({ message: err.message });
+    res.status(500).json({
+      message: err.message
+    });
 
   }
 
