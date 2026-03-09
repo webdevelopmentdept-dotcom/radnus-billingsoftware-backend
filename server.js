@@ -3,7 +3,7 @@ const bcrypt = require("bcrypt");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
-
+const sendEmail = require("./utils/sendEmail");
 const dns = require("dns");
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
@@ -174,6 +174,29 @@ app.use("/api/dashboard", require("./routes/dashboardRoutes"));
 app.use("/api/makes", makeRoutes);
 
 
+
+app.get("/test-email", async (req, res) => {
+
+  try {
+
+    await sendEmail(
+      "sarathadeviiayyappan@gmail.com",   // ← உங்கள் email இங்கு போடுங்கள்
+      "Radnus Email Test",
+      "Test email from Radnus Billing Software",
+      null
+    );
+
+    res.send("✅ Email sent successfully");
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.send("❌ Email failed");
+
+  }
+
+});
 
 // ================= SERVER =================
 const PORT = process.env.PORT || 5000;

@@ -2,53 +2,64 @@ const PDFDocument = require("pdfkit");
 const JobSheet = require("../models/JobSheet");
 
 const generatePDF = async (jobId) => {
-  return new Promise(async (resolve, reject) => {
-    try {
 
-      const job = await JobSheet.findById(jobId);
+  const job = await JobSheet.findById(jobId);
 
-      if (!job) {
-        return reject("Job not found");
-      }
+  if (!job) {
+    throw new Error("Job not found");
+  }
 
-      const doc = new PDFDocument();
+  return new Promise((resolve, reject) => {
 
-      const buffers = [];
+    const doc = new PDFDocument();
 
-      doc.on("data", buffers.push.bind(buffers));
-      doc.on("end", () => {
-        const pdfData = Buffer.concat(buffers);
-        resolve(pdfData);
-      });
+    const buffers = [];
 
-      doc.fontSize(20).text("RADNUS COMMUNICATION", { align: "center" });
+    doc.on("data", (chunk) => buffers.push(chunk));
 
-      doc.moveDown();
+    doc.on("end", () => {
+      const pdfData = Buffer.concat(buffers);
+      resolve(pdfData);
+    });
 
-      doc.fontSize(14).text(`Estimate No: ${job.jobSheetNo}`);
-      doc.text(`Customer: ${job.customer?.name}`);
-      doc.text(`Phone: ${job.customer?.contact}`);
+    doc.on("error", reject);
 
-      doc.moveDown();
+    /* HEADER */
 
-      const service = Number(job.service?.serviceCharge || 0);
-      const spare = Number(job.service?.spareCharge || 0);
+    doc
+      .fontSize(20)
+      .text("RADNUS COMMUNICATION", { align: "center" });
 
-      const total = service + spare;
+    doc.moveDown();
 
-      doc.text(`Service Charge: ₹${service}`);
-      doc.text(`Spare Charge: ₹${spare}`);
+    /* JOB INFO */
 
-      doc.moveDown();
+    doc.fontSize(14).text(`Estimate No: ${job.jobSheetNo}`);
+    doc.text(`Customer: ${job.customer?.name || "-"}`);
+    doc.text(`Phone: ${job.customer?.contact || "-"}`);
 
-      doc.fontSize(16).text(`Total Estimate: ₹${total}`);
+    doc.moveDown();
 
-      doc.end();
+    /* SERVICE */
 
-    } catch (err) {
-      reject(err);
-    }
+    const service = Number(job.service?.serviceCharge || 0);
+    const spare = Number(job.service?.spareCharge || 0);
+
+    const total = service + spare;
+
+    doc.text(`Service Charge: ₹${service}`);
+    doc.text(`Spare Charge: ₹${spare}`);
+
+    doc.moveDown();
+
+    doc
+      .fontSize(16)
+      .text(`Total Estimate: ₹${total}`);
+
+    doc.end();
+
   });
+
 };
 
 module.exports = generatePDF;
