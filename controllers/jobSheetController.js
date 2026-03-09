@@ -156,7 +156,12 @@ exports.updateJobSheet = async (req, res) => {
 /* ================= ESTIMATE EMAIL ================= */
 exports.sendEstimateEmail = async (req, res) => {
   try {
+
+    console.log("STEP 1 - API HIT");
+
     const job = await JobSheet.findById(req.params.id);
+
+    console.log("STEP 2 - JOB FETCHED");
 
     if (!job) {
       return res.status(404).json({ message: "Job not found" });
@@ -166,7 +171,11 @@ exports.sendEstimateEmail = async (req, res) => {
       return res.status(400).json({ message: "Email not found" });
     }
 
+    console.log("STEP 3 - GENERATING PDF");
+
     const pdfBuffer = await generatePDF(job._id);
+
+    console.log("STEP 4 - PDF GENERATED");
 
     const subject = `Estimate - ${job.jobSheetNo}`;
 
@@ -179,12 +188,19 @@ Thank you,
 RADNUS COMMUNICATION
 `;
 
+    console.log("STEP 5 - SENDING EMAIL");
+
     await sendEmail(job.customer.email, subject, text, pdfBuffer);
+
+    console.log("STEP 6 - EMAIL SENT");
 
     res.json({ message: "Estimate sent with PDF ✅" });
 
   } catch (err) {
-    console.error(err);
+
+    console.error("ERROR OCCURRED:", err);
+
     res.status(500).json({ message: err.message });
+
   }
 };
