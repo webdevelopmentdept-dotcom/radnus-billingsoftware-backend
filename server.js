@@ -16,7 +16,9 @@ app.use(cors({
   origin: [
     "http://localhost:5173",
     "https://billingsoftware-frontend.vercel.app",
-    "https://radnus-billingsoftware-frontend.vercel.app"
+    "https://radnus-billingsoftware-frontend.vercel.app",
+     "https://service.radnus.in",
+      
   ],
   credentials: true
 }));
