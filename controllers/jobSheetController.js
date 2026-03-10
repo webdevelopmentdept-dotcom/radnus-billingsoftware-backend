@@ -199,6 +199,7 @@ exports.sendEstimateEmail = async (req, res) => {
     }
 
     console.log("STEP 3 - GENERATING PDF");
+    console.log("Generating PDF for:", job._id);
 
     const pdfBuffer = await generatePDF(job._id);
 

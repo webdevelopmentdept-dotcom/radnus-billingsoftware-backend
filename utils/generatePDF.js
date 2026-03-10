@@ -7,7 +7,10 @@ const generatePDF = async (jobId) => {
   const options = {
     format: "A4",
     printBackground: true,
-    args: ["--no-sandbox"]
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox"
+    ]
   };
 
   const file = { url };
