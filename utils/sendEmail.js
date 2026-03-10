@@ -6,7 +6,7 @@ const sendEmail = async (to, subject, text, pdfBuffer, fileName) => {
   try {
 
     await resend.emails.send({
-      from: 'RADNUS <onboarding@resend.dev>',
+    from: 'RADNUS <noreply@service.radnus.in>',
       to: [to],
       subject: subject,
       text: text,
