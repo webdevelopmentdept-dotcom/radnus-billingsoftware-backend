@@ -1,65 +1,20 @@
-const PDFDocument = require("pdfkit");
-const JobSheet = require("../models/JobSheet");
+const html_to_pdf = require("html-pdf-node");
 
 const generatePDF = async (jobId) => {
 
-  const job = await JobSheet.findById(jobId);
+  const url = `https://service.radnus.in/estimate-bill/${jobId}`;
 
-  if (!job) {
-    throw new Error("Job not found");
-  }
+  const options = {
+    format: "A4",
+    printBackground: true,
+    args: ["--no-sandbox"]
+  };
 
-  return new Promise((resolve, reject) => {
+  const file = { url };
 
-    const doc = new PDFDocument();
+  const pdfBuffer = await html_to_pdf.generatePdf(file, options);
 
-    const buffers = [];
-
-    doc.on("data", (chunk) => buffers.push(chunk));
-
-    doc.on("end", () => {
-      const pdfData = Buffer.concat(buffers);
-      resolve(pdfData);
-    });
-
-    doc.on("error", reject);
-
-    /* HEADER */
-
-    doc
-      .fontSize(20)
-      .text("RADNUS COMMUNICATION", { align: "center" });
-
-    doc.moveDown();
-
-    /* JOB INFO */
-
-    doc.fontSize(14).text(`Estimate No: ${job.jobSheetNo}`);
-    doc.text(`Customer: ${job.customer?.name || "-"}`);
-    doc.text(`Phone: ${job.customer?.contact || "-"}`);
-
-    doc.moveDown();
-
-    /* SERVICE */
-
-    const service = Number(job.service?.serviceCharge || 0);
-    const spare = Number(job.service?.spareCharge || 0);
-
-    const total = service + spare;
-
-    doc.text(`Service Charge: ₹${service}`);
-    doc.text(`Spare Charge: ₹${spare}`);
-
-    doc.moveDown();
-
-    doc
-      .fontSize(16)
-      .text(`Total Estimate: ₹${total}`);
-
-    doc.end();
-
-  });
-
+  return pdfBuffer;
 };
 
 module.exports = generatePDF;
