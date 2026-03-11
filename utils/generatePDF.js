@@ -22,15 +22,17 @@
 
 // module.exports = generatePDF;
 
-const puppeteer = require("puppeteer");
+const chromium = require("@sparticuz/chromium");
+const puppeteer = require("puppeteer-core");
 
 const generatePDF = async (jobId) => {
 
   const url = `https://service.radnus.in/estimate-bill/${jobId}?pdf=true`;
 
   const browser = await puppeteer.launch({
-    headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    args: chromium.args,
+    executablePath: await chromium.executablePath(),
+    headless: chromium.headless
   });
 
   const page = await browser.newPage();
