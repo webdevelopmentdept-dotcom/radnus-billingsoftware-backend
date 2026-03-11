@@ -141,33 +141,21 @@ const generatePDF = (job) => {
     doc.roundedRect(40, iy, 515, 50, 4)
        .fillAndStroke("#ffffff", "#cccccc");
     doc.fillColor("#000").fontSize(9.5).font("Helvetica")
-       .text(job.service?.issue || "", 50, iy + 12, { width: 495 });
+       .text(job.visualIssues?.issue || "", 50, iy + 12, { width: 495 });
 
     /* ─────────────────────────────────────────
-       MOBILE CONDITION  –  table (WITH HEADER ROW)
+       MOBILE CONDITION  –  table (NO HEADER ROW)
     ───────────────────────────────────────── */
     let mc = iy + 62;
     sectionTitle("MOBILE CONDITION", 40, mc);
     mc += 18;
 
-    const cond    = job.service?.condition || {};
+    const cond    = job.physicalCondition || {};
     const COL     = [110, 140, 130, 135];   // col widths, total = 515
     const TX      = 40;
     const RH      = 28;
 
-    // HEADER ROW
-    doc.rect(TX, mc, 515, RH).fillAndStroke("#d0d0d0", "#999999");
-    const hdrLabels = ["Charger", null, "Pattern / PIN", null];
-    let hx = TX;
-    hdrLabels.forEach((h, i) => {
-      if (h) {
-        doc.fillColor("#000").fontSize(9.5).font("Helvetica-Bold")
-           .text(h, hx + 7, mc + 7, { width: COL[i] - 8, lineBreak: false });
-      }
-      hx += COL[i];
-    });
-
-    // DATA ROWS - Using actual data from job object
+    // DATA ROWS ONLY - NO HEADER ROW
     const condRows = [
       ["Charger",     cond.charger    ? "Yes" : (cond.charger === "" ? "" : "No"), "Pattern / PIN", job.device?.pattern  || ""],
       ["Back",        cond.back       ? "Yes" : (cond.back === "" ? "" : "No"),     "Memory Card",   cond.memoryCard ? "Yes" : (cond.memoryCard === "" ? "" : "No")],
@@ -176,8 +164,8 @@ const generatePDF = (job) => {
 
     // Draw data rows with alternating colors
     condRows.forEach((row, ri) => {
-      const ry = mc + RH * (ri + 1);
-      const bg = ri % 2 === 0 ? "#ffffff" : "#f9f9f9";
+      const ry = mc + RH * ri;
+      const bg = ri % 2 === 0 ? "#e8e8e8" : "#ffffff";
       doc.rect(TX, ry, 515, RH).fillAndStroke(bg, "#999999");
       let cx = TX;
       row.forEach((cell, ci) => {
@@ -191,7 +179,7 @@ const generatePDF = (job) => {
     /* ─────────────────────────────────────────
        ESTIMATE AMOUNT - WITH BREAKDOWN
     ───────────────────────────────────────── */
-    let ey = mc + RH * (condRows.length + 1) + 14;
+    let ey = mc + RH * condRows.length + 14;
     sectionTitle("ESTIMATE AMOUNT", 40, ey);
     ey += 18;
 
