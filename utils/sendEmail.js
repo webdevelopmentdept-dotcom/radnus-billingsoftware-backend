@@ -34,28 +34,37 @@ const { Resend } = require("resend");
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendEmail = async (to, subject, text, pdfBuffer, fileName) => {
+
   try {
+
+    const attachments = [];
+
+    if (pdfBuffer) {
+      attachments.push({
+        filename: fileName || "Estimate.pdf",
+        content: pdfBuffer.toString("base64"),
+        encoding: "base64",
+        contentType: "application/pdf"
+      });
+    }
 
     await resend.emails.send({
       from: "RADNUS <noreply@service.radnus.in>",
       to: [to],
       subject: subject,
       text: text,
-      attachments: [
-        {
-          filename: fileName || "Estimate.pdf",
-          content: pdfBuffer,   // send buffer directly
-          contentType: "application/pdf"
-        }
-      ]
+      attachments: attachments
     });
 
-    console.log("Email sent successfully ✅");
+    console.log("Email sent successfully");
 
   } catch (error) {
+
     console.error("EMAIL ERROR:", error);
     throw error;
+
   }
+
 };
 
 module.exports = sendEmail;

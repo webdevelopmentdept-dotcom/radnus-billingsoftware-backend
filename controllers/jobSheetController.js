@@ -269,7 +269,7 @@ exports.sendEstimateEmail = async (req, res) => {
     /* GENERATE PDF FROM ESTIMATE PAGE */
 
     const pdfBuffer = await generatePDF(job._id);
-
+    console.log("PDF Buffer Length:", pdfBuffer?.length);
     const total =
       Number(job.service?.serviceCharge || 0) +
       Number(job.service?.spareCharge || 0);
