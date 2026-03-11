@@ -137,12 +137,17 @@ const generatePDF = (job) => {
     let iy = boxTop + boxH + 12;
     sectionTitle("ISSUE", 40, iy);
     iy += 18;
-    
+
+    // Combine visualIssues and physicalCondition arrays
+    const issueText = [
+      ...(job.visualIssues || []),
+      ...(job.physicalCondition || [])
+    ].filter(Boolean).join(", ");
 
     doc.roundedRect(40, iy, 515, 50, 4)
        .fillAndStroke("#ffffff", "#cccccc");
     doc.fillColor("#000").fontSize(9.5).font("Helvetica")
-       .text(job.visualIssues || "", 50, iy + 12, { width: 495 });
+       .text(issueText || "", 50, iy + 12, { width: 495 });
 
     /* ─────────────────────────────────────────
        MOBILE CONDITION  –  table (NO HEADER ROW)
@@ -194,13 +199,13 @@ const generatePDF = (job) => {
     doc.fillColor("#000").fontSize(11).font("Helvetica-Bold")
        .text("Service Charge", 50, ey + 10, { width: 400, lineBreak: false });
     doc.fontSize(11).font("Helvetica-Bold").fillColor("#000")
-       .text(`₹ ${service || ""}`, 480, ey + 10, { width: 65, align: "right", lineBreak: false });
+       .text(`${service || ""}`, 480, ey + 10, { width: 65, align: "right", lineBreak: false });
 
     // Spare Charge row
     doc.fillColor("#000").fontSize(11).font("Helvetica-Bold")
        .text("Spare Charge", 50, ey + 32, { width: 400, lineBreak: false });
     doc.fontSize(11).font("Helvetica-Bold").fillColor("#000")
-       .text(`₹ ${spare || ""}`, 480, ey + 32, { width: 65, align: "right", lineBreak: false });
+       .text(`${spare || ""}`, 480, ey + 32, { width: 65, align: "right", lineBreak: false });
 
     // Divider line
     doc.moveTo(50, ey + 52).lineTo(540, ey + 52)
@@ -210,7 +215,7 @@ const generatePDF = (job) => {
     doc.fillColor("#000").fontSize(12).font("Helvetica-Bold")
        .text("Total Estimate", 50, ey + 58, { width: 400, lineBreak: false });
     doc.fontSize(12).font("Helvetica-Bold").fillColor("#000")
-       .text(`₹ ${total || ""}`, 480, ey + 58, { width: 65, align: "right", lineBreak: false });
+       .text(`${total || ""}`, 480, ey + 58, { width: 65, align: "right", lineBreak: false });
 
     /* ─────────────────────────────────────────
        TERMS & CONDITIONS
