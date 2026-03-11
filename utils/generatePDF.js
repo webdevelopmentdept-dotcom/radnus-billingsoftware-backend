@@ -1,27 +1,3 @@
-// const html_to_pdf = require("html-pdf-node");
-
-// const generatePDF = async (jobId) => {
-
-//   const url = `https://service.radnus.in/estimate-bill/${jobId}`;
-
-//   const options = {
-//     format: "A4",
-//     printBackground: true,
-//     args: [
-//       "--no-sandbox",
-//       "--disable-setuid-sandbox"
-//     ]
-//   };
-
-//   const file = { url };
-
-//   const pdfBuffer = await html_to_pdf.generatePdf(file, options);
-
-//   return pdfBuffer;
-// };
-
-// module.exports = generatePDF;
-
 const path = require("path");
 const PDFDocument = require("pdfkit");
 
@@ -55,71 +31,68 @@ const generatePDF = (job) => {
     /* ─────────────────────────────────────────
        HEADER LEFT
     ───────────────────────────────────────── */
-    doc.fontSize(15).font("Helvetica-Bold")
+    doc.fontSize(14).font("Helvetica-Bold")
        .fillColor("#000")
        .text("RADNUS COMMUNICATION", 40, 40);
 
-    doc.fontSize(9.5).font("Helvetica")
-       .text("242, Sinnaya Plaza, MG Road,", 40, 58)
-       .text("Puducherry - 605001",           40, 71)
-       .text("Phone: 81222 73355",            40, 84)
-       .text("Mon–Sat (10AM–7PM)",            40, 97)
-       .text("Website: www.radnus.in",        40, 110);
+    doc.fontSize(9).font("Helvetica")
+       .text("242, Sinnaya Plaza, MG Road,", 40, 56)
+       .text("Puducherry - 605001",          40, 68)
+       .text("Phone: 81222 73355",           40, 80)
+       .text("Mon–Sat (10AM–7PM)",           40, 92)
+       .text("Website: www.radnus.in",       40, 104);
 
     /* ─────────────────────────────────────────
-       LOGO
+       LOGO - CENTERED
     ───────────────────────────────────────── */
-    doc.image(logoPath, 235, 40, { width: 105 });
+    doc.image(logoPath, 280, 50, { width: 90 });
 
     /* ─────────────────────────────────────────
        HEADER RIGHT – JOB SHEET
-       Fix: strip timezone from date strings
     ───────────────────────────────────────── */
-    const rX = 395;
+    const rX = 410;
 
     doc.fontSize(13).font("Helvetica-Bold")
        .text("JOB SHEET", rX, 40);
 
-    // Safe date formatter – returns only YYYY-MM-DD, never timezone text
+    // Safe date formatter
     const fmtDate = (val) => {
-      if (!val) return "NIL";
+      if (!val) return "";
       const s = String(val);
-      // If already YYYY-MM-DD format
       if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-      // Try to parse and extract date portion only
       const d = new Date(s);
       if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
-      // Fallback: just take first 10 chars
       return s.slice(0, 10);
     };
 
     const jobRows = [
-      ["Job No",   job.jobSheetNo              || "NIL"],
+      ["Job No",   job.jobSheetNo              || ""],
       ["Created",  fmtDate(new Date())],
       ["Delivery", fmtDate(job.service?.deliveryDate)],
-      ["Engineer", job.service?.engineer        || "NIL"],
+      ["Engineer", job.service?.engineer        || ""],
     ];
 
     const labelX = rX;
-    const colonX = rX + 68;
-    const valueX = rX + 78;
+    const colonX = rX + 55;
+    const valueX = rX + 65;
     const valueW = 555 - valueX;
-    let jY = 62;
+    let jY = 58;
 
     jobRows.forEach(([label, value]) => {
       doc.fontSize(10).font("Helvetica-Bold").fillColor("#000")
          .text(label,  labelX, jY, { lineBreak: false });
       doc.font("Helvetica")
          .text(":",    colonX, jY, { lineBreak: false });
-      doc.text(String(value), valueX, jY, { width: valueW, lineBreak: false });
-      jY += 17;
+      doc.fontSize(10).font("Helvetica")
+         .text(String(value), valueX, jY, { width: valueW, lineBreak: false });
+      jY += 16;
     });
 
     /* ─────────────────────────────────────────
-       HORIZONTAL RULE
+       HORIZONTAL RULE - THICKER
     ───────────────────────────────────────── */
-    doc.moveTo(40, 135).lineTo(555, 135)
-       .lineWidth(0.8).strokeColor("#000").stroke();
+    doc.moveTo(40, 138).lineTo(555, 138)
+       .lineWidth(2).strokeColor("#000").stroke();
 
     /* ─────────────────────────────────────────
        SECTION TITLE HELPER
@@ -133,29 +106,29 @@ const generatePDF = (job) => {
     /* ─────────────────────────────────────────
        CUSTOMER  &  DEVICE
     ───────────────────────────────────────── */
-    let secY = 145;
+    let secY = 150;
     sectionTitle("CUSTOMER", 40,  secY);
     sectionTitle("DEVICE",   305, secY);
 
     const boxTop = secY + 18;
-    const boxH   = 90;
+    const boxH   = 85;
 
-    // Customer box
-    doc.roundedRect(40, boxTop, 250, boxH, 5)
-       .fillAndStroke("#f5f5f5", "#d0d0d0");
+    // Customer box - WHITE with border
+    doc.roundedRect(40, boxTop, 250, boxH, 4)
+       .fillAndStroke("#ffffff", "#cccccc");
     doc.fillColor("#000").fontSize(9.5).font("Helvetica")
-       .text(`Name: ${job.customer?.name      || "NIL"}`, 54, boxTop + 10, { width: 228 })
-       .text(`Phone: ${job.customer?.contact   || "NIL"}`,                  { width: 228 })
-       .text(`Email: ${job.customer?.email     || "NIL"}`,                  { width: 228 })
-       .text(`Address: ${job.customer?.address  || "NIL"}`,                 { width: 228 });
+       .text(`Name: ${job.customer?.name      || ""}`, 50, boxTop + 10, { width: 225 })
+       .text(`Phone: ${job.customer?.contact   || ""}`,                { width: 225 })
+       .text(`Email: ${job.customer?.email     || ""}`,                { width: 225 })
+       .text(`Address: ${job.customer?.address  || ""}`,               { width: 225 });
 
-    // Device box
-    doc.roundedRect(305, boxTop, 250, boxH, 5)
-       .fillAndStroke("#f5f5f5", "#d0d0d0");
+    // Device box - WHITE with border
+    doc.roundedRect(305, boxTop, 250, boxH, 4)
+       .fillAndStroke("#ffffff", "#cccccc");
     doc.fillColor("#000").fontSize(9.5).font("Helvetica")
-       .text(`Brand: ${job.device?.make  || "NIL"}`, 319, boxTop + 18, { width: 228 })
-       .text(`Model: ${job.device?.model || "NIL"}`,                   { width: 228 })
-       .text(`IMEI: ${job.device?.imei   || "NIL"}`,                   { width: 228 });
+       .text(`Brand: ${job.device?.make  || ""}`, 315, boxTop + 10, { width: 225 })
+       .text(`Model: ${job.device?.model || ""}`,                 { width: 225 })
+       .text(`IMEI: ${job.device?.imei   || ""}`,                 { width: 225 });
 
     /* ─────────────────────────────────────────
        ISSUE
@@ -164,25 +137,25 @@ const generatePDF = (job) => {
     sectionTitle("ISSUE", 40, iy);
     iy += 18;
 
-    doc.roundedRect(40, iy, 515, 40, 5)
-       .fillAndStroke("#f5f5f5", "#d0d0d0");
+    doc.roundedRect(40, iy, 515, 50, 4)
+       .fillAndStroke("#ffffff", "#cccccc");
     doc.fillColor("#000").fontSize(9.5).font("Helvetica")
-       .text(job.service?.issue || "NIL", 54, iy + 12, { width: 492 });
+       .text(job.service?.issue || "", 50, iy + 12, { width: 495 });
 
     /* ─────────────────────────────────────────
        MOBILE CONDITION  –  table
     ───────────────────────────────────────── */
-    let mc = iy + 52;
+    let mc = iy + 62;
     sectionTitle("MOBILE CONDITION", 40, mc);
     mc += 18;
 
     const cond    = job.service?.condition || {};
     const COL     = [110, 140, 130, 135];   // col widths, total = 515
     const TX      = 40;
-    const RH      = 26;
+    const RH      = 28;
 
     // Header row
-    doc.rect(TX, mc, 515, RH).fillAndStroke("#dedede", "#c8c8c8");
+    doc.rect(TX, mc, 515, RH).fillAndStroke("#e8e8e8", "#999999");
     const hdrLabels = ["Charger", null, "Pattern / PIN", null];
     let hx = TX;
     hdrLabels.forEach((h, i) => {
@@ -193,17 +166,17 @@ const generatePDF = (job) => {
       hx += COL[i];
     });
 
-    // Data rows
+    // Data rows - use "Yes/No" instead of text values
     const condRows = [
-      ["Charger", cond.charger    || "NIL",  "Pattern / PIN", cond.patternPin  || "NIL"],
-      ["Back",    cond.back       || "NIL",  "Memory Card",   cond.memoryCard  || "NIL"],
-      ["SIM",     cond.sim        || "NIL",  "",              ""],
+      ["Charger",     cond.charger    ? "Yes" : (cond.charger === "" ? "" : "No"), "Pattern / PIN", cond.patternPin  || ""],
+      ["Back",        cond.back       ? "Yes" : (cond.back === "" ? "" : "No"),     "Memory Card",   cond.memoryCard ? "Yes" : (cond.memoryCard === "" ? "" : "No")],
+      ["SIM",         cond.sim        ? "Yes" : (cond.sim === "" ? "" : "No"),      "",              ""],
     ];
 
     condRows.forEach((row, ri) => {
       const ry = mc + RH * (ri + 1);
-      const bg = ri % 2 === 0 ? "#ffffff" : "#f7f7f7";
-      doc.rect(TX, ry, 515, RH).fillAndStroke(bg, "#c8c8c8");
+      const bg = ri % 2 === 0 ? "#ffffff" : "#f9f9f9";
+      doc.rect(TX, ry, 515, RH).fillAndStroke(bg, "#999999");
       let cx = TX;
       row.forEach((cell, ci) => {
         doc.fillColor("#000").fontSize(9.5)
@@ -221,17 +194,17 @@ const generatePDF = (job) => {
     ey += 18;
 
     doc.dash(5, { space: 4 })
-       .rect(40, ey, 515, 50)
-       .stroke("#aaaaaa");
+       .rect(40, ey, 515, 55)
+       .stroke("#666666");
     doc.undash();
 
-    doc.fillColor("#000").fontSize(20).font("Helvetica-Bold")
-       .text(`\u20B9 ${total}`, 40, ey + 13, { align: "center", width: 515, lineBreak: false });
+    doc.fillColor("#000").fontSize(28).font("Helvetica-Bold")
+       .text(`\u20B9 ${total || ""}`, 40, ey + 12, { align: "center", width: 515, lineBreak: false });
 
     /* ─────────────────────────────────────────
        TERMS & CONDITIONS
     ───────────────────────────────────────── */
-    let ty = ey + 62;
+    let ty = ey + 69;
     sectionTitle("TERMS & CONDITIONS", 40, ty);
     ty += 16;
 
@@ -245,24 +218,24 @@ const generatePDF = (job) => {
       "Only checking warranty for all services and spares used.",
     ];
 
-    // Draw box placeholder – we'll fill height after measuring text
     const termsBoxY = ty;
-    doc.save(); // we'll draw box after writing text to know real height
-
     let termY = ty + 10;
+
+    // Measure text height first
+    doc.save();
     terms.forEach((t, i) => {
       doc.fillColor("#000").fontSize(8.5).font("Helvetica")
          .text(`${i + 1}. ${t}`, 54, termY, { width: 490 });
       termY = doc.y + 3;
     });
-
     const termsBoxH = termY - termsBoxY + 6;
     doc.restore();
-    // Draw the box behind text (re-draw outline over content is fine in pdfkit)
-    doc.roundedRect(40, termsBoxY, 515, termsBoxH, 5)
-       .fillAndStroke("#fafafa", "#d0d0d0");
 
-    // Re-draw text on top of box
+    // Draw the box
+    doc.roundedRect(40, termsBoxY, 515, termsBoxH, 4)
+       .fillAndStroke("#fafafa", "#cccccc");
+
+    // Re-draw text on top
     termY = termsBoxY + 10;
     terms.forEach((t, i) => {
       doc.fillColor("#000").fontSize(8.5).font("Helvetica")
@@ -275,7 +248,7 @@ const generatePDF = (job) => {
     ───────────────────────────────────────── */
     const signY = termY + 20;
 
-    doc.lineWidth(0.8).strokeColor("#000");
+    doc.lineWidth(1).strokeColor("#000");
     doc.moveTo(50,  signY).lineTo(175, signY).stroke();
     doc.moveTo(225, signY).lineTo(370, signY).stroke();
     doc.moveTo(415, signY).lineTo(555, signY).stroke();
