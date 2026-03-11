@@ -142,7 +142,7 @@ const generatePDF = (job) => {
     doc.roundedRect(40, iy, 515, 50, 4)
        .fillAndStroke("#ffffff", "#cccccc");
     doc.fillColor("#000").fontSize(9.5).font("Helvetica")
-       .text(job.visualIssues?.[0]|| "", 50, iy + 12, { width: 495 });
+       .text(job.visualIssues || "", 50, iy + 12, { width: 495 });
 
     /* ─────────────────────────────────────────
        MOBILE CONDITION  –  table (NO HEADER ROW)
