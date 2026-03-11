@@ -144,7 +144,7 @@ const generatePDF = (job) => {
        .text(job.service?.issue || "", 50, iy + 12, { width: 495 });
 
     /* ─────────────────────────────────────────
-       MOBILE CONDITION  –  table (FIXED STRUCTURE)
+       MOBILE CONDITION  –  table (WITH HEADER ROW)
     ───────────────────────────────────────── */
     let mc = iy + 62;
     sectionTitle("MOBILE CONDITION", 40, mc);
@@ -155,17 +155,29 @@ const generatePDF = (job) => {
     const TX      = 40;
     const RH      = 28;
 
-    // DATA ROWS ONLY - NO HEADER ROW (removed the first header row)
+    // HEADER ROW
+    doc.rect(TX, mc, 515, RH).fillAndStroke("#d0d0d0", "#999999");
+    const hdrLabels = ["Charger", null, "Pattern / PIN", null];
+    let hx = TX;
+    hdrLabels.forEach((h, i) => {
+      if (h) {
+        doc.fillColor("#000").fontSize(9.5).font("Helvetica-Bold")
+           .text(h, hx + 7, mc + 7, { width: COL[i] - 8, lineBreak: false });
+      }
+      hx += COL[i];
+    });
+
+    // DATA ROWS - Using actual data from job object
     const condRows = [
-      ["Charger",     cond.charger    ? "Yes" : (cond.charger === "" ? "" : "No"), "Pattern / PIN", cond.patternPin  || ""],
+      ["Charger",     cond.charger    ? "Yes" : (cond.charger === "" ? "" : "No"), "Pattern / PIN", job.device?.pattern  || ""],
       ["Back",        cond.back       ? "Yes" : (cond.back === "" ? "" : "No"),     "Memory Card",   cond.memoryCard ? "Yes" : (cond.memoryCard === "" ? "" : "No")],
       ["SIM",         cond.sim        ? "Yes" : (cond.sim === "" ? "" : "No"),      "",              ""],
     ];
 
-    // Draw ONLY the data rows with alternating colors
+    // Draw data rows with alternating colors
     condRows.forEach((row, ri) => {
-      const ry = mc + RH * ri;
-      const bg = ri % 2 === 0 ? "#e8e8e8" : "#ffffff";
+      const ry = mc + RH * (ri + 1);
+      const bg = ri % 2 === 0 ? "#ffffff" : "#f9f9f9";
       doc.rect(TX, ry, 515, RH).fillAndStroke(bg, "#999999");
       let cx = TX;
       row.forEach((cell, ci) => {
@@ -177,24 +189,44 @@ const generatePDF = (job) => {
     });
 
     /* ─────────────────────────────────────────
-       ESTIMATE AMOUNT
+       ESTIMATE AMOUNT - WITH BREAKDOWN
     ───────────────────────────────────────── */
-    let ey = mc + RH * condRows.length + 14;
+    let ey = mc + RH * (condRows.length + 1) + 14;
     sectionTitle("ESTIMATE AMOUNT", 40, ey);
     ey += 18;
 
+    // Dashed border box
     doc.dash(5, { space: 4 })
-       .rect(40, ey, 515, 55)
+       .rect(40, ey, 515, 85)
        .stroke("#666666");
     doc.undash();
 
-    doc.fillColor("#000").fontSize(28).font("Helvetica-Bold")
-       .text(`${total || ""}`, 40, ey + 12, { align: "center", width: 515, lineBreak: false });
+    // Service Charge row
+    doc.fillColor("#000").fontSize(11).font("Helvetica-Bold")
+       .text("Service Charge", 50, ey + 10, { width: 400, lineBreak: false });
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#000")
+       .text(`₹ ${service || ""}`, 480, ey + 10, { width: 65, align: "right", lineBreak: false });
+
+    // Spare Charge row
+    doc.fillColor("#000").fontSize(11).font("Helvetica-Bold")
+       .text("Spare Charge", 50, ey + 32, { width: 400, lineBreak: false });
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#000")
+       .text(`₹ ${spare || ""}`, 480, ey + 32, { width: 65, align: "right", lineBreak: false });
+
+    // Divider line
+    doc.moveTo(50, ey + 52).lineTo(540, ey + 52)
+       .lineWidth(1).strokeColor("#999999").stroke();
+
+    // Total Estimate row
+    doc.fillColor("#000").fontSize(12).font("Helvetica-Bold")
+       .text("Total Estimate", 50, ey + 58, { width: 400, lineBreak: false });
+    doc.fontSize(12).font("Helvetica-Bold").fillColor("#000")
+       .text(`₹ ${total || ""}`, 480, ey + 58, { width: 65, align: "right", lineBreak: false });
 
     /* ─────────────────────────────────────────
        TERMS & CONDITIONS
     ───────────────────────────────────────── */
-    let ty = ey + 69;
+    let ty = ey + 99;
     sectionTitle("TERMS & CONDITIONS", 40, ty);
     ty += 16;
 
