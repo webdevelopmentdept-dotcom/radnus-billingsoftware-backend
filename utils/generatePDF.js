@@ -44,20 +44,26 @@ const generatePDF = async (jobId) => {
   // small delay to ensure React finishes rendering
   await new Promise(resolve => setTimeout(resolve, 1000));
 
+  // const pdfBuffer = await page.pdf({
+  //   format: "A4",
+  //   printBackground: true,
+  //   margin: {
+  //     top: "10mm",
+  //     bottom: "10mm",
+  //     left: "10mm",
+  //     right: "10mm"
+  //   }
+  // });
+
+  // await browser.close();
+
+  // return pdfBuffer;
   const pdfBuffer = await page.pdf({
-    format: "A4",
-    printBackground: true,
-    margin: {
-      top: "10mm",
-      bottom: "10mm",
-      left: "10mm",
-      right: "10mm"
-    }
-  });
+  format: "A4",
+  printBackground: true
+});
 
-  await browser.close();
-
-  return pdfBuffer;
+return pdfBuffer;
 };
 
 module.exports = generatePDF;

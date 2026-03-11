@@ -43,9 +43,8 @@ const sendEmail = async (to, subject, text, pdfBuffer, fileName) => {
       text: text,
       attachments: [
         {
-          filename: fileName || "file.pdf",
-          content: pdfBuffer.toString("base64"),
-          encoding: "base64",
+          filename: fileName || "Estimate.pdf",
+          content: pdfBuffer,   // send buffer directly
           contentType: "application/pdf"
         }
       ]
