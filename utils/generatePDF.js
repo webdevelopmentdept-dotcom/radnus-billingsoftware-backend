@@ -17,15 +17,16 @@ const generatePDF = (job) => {
     const total   = service + spare;
 
     /* ─────────────────────────────────────────
-       WATERMARK  –  centred diagonal, VISIBLE
+       WATERMARK  –  centred diagonal, VISIBLE & OVERLAY
     ───────────────────────────────────────── */
     doc.save();
-    doc.rotate(-35, { origin: [297, 421] })
-       .fontSize(110)
-       .fillOpacity(0.15)  // Increased from 0.02 to 0.15 for visible watermark
-       .fillColor("#000000")  // Changed back to black for visibility
-       .font("Helvetica-Bold")
-       .text("RADNUS", 0, 370, { width: 595, align: "center" });
+    doc.translate(297, 421);  // Move to center
+    doc.rotate(-45);           // Rotate -45 degrees
+    doc.fillOpacity(0.12);     // Visible opacity
+    doc.fillColor("#999999");  // Light gray for overlay effect
+    doc.font("Helvetica-Bold")
+       .fontSize(120)
+       .text("RADNUS", -150, -50, { width: 400, align: "center" });
     doc.restore();
     doc.fillOpacity(1).fillColor("#000");
 
