@@ -42,9 +42,7 @@ const sendEmail = async (to, subject, text, pdfBuffer, fileName) => {
     if (pdfBuffer) {
       attachments.push({
         filename: fileName || "Estimate.pdf",
-        content: pdfBuffer.toString("base64"),
-        encoding: "base64",
-        contentType: "application/pdf"
+        content: pdfBuffer, // send buffer directly
       });
     }
 
@@ -56,7 +54,7 @@ const sendEmail = async (to, subject, text, pdfBuffer, fileName) => {
       attachments: attachments
     });
 
-    console.log("Email sent successfully");
+    console.log("Email sent successfully ✅");
 
   } catch (error) {
 

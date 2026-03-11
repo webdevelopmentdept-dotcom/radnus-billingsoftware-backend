@@ -37,12 +37,10 @@ const generatePDF = async (jobId) => {
 
   const page = await browser.newPage();
 
-  await page.goto(url, {
-    waitUntil: "networkidle0"
-  });
+  await page.goto(url, { waitUntil: "networkidle0" });
 
-  // small delay to ensure React finishes rendering
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  // ensure React finished rendering
+  await new Promise(resolve => setTimeout(resolve, 1500));
 
   const pdfBuffer = await page.pdf({
     format: "A4",
