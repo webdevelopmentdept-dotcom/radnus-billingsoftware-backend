@@ -17,13 +17,13 @@ const generatePDF = (job) => {
     const total   = service + spare;
 
     /* ─────────────────────────────────────────
-       WATERMARK  –  centred diagonal, VERY FAINT (nearly hidden)
+       WATERMARK  –  centred diagonal, VISIBLE
     ───────────────────────────────────────── */
     doc.save();
     doc.rotate(-35, { origin: [297, 421] })
        .fontSize(110)
-       .fillOpacity(0.02)  // Changed from 0.07 to 0.02 for much lighter watermark
-       .fillColor("#cccccc")  // Changed to lighter gray
+       .fillOpacity(0.15)  // Increased from 0.02 to 0.15 for visible watermark
+       .fillColor("#000000")  // Changed back to black for visibility
        .font("Helvetica-Bold")
        .text("RADNUS", 0, 370, { width: 595, align: "center" });
     doc.restore();
