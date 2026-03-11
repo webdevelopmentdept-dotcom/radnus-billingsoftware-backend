@@ -257,9 +257,7 @@ exports.sendEstimateEmail = async (req, res) => {
     const job = await JobSheet.findById(req.params.id);
 
     if (!job) {
-      return res.status(404).json({
-        message: "Job not found"
-      });
+      return res.status(404).json({ message: "Job not found" });
     }
 
     if (!job.customer?.email) {
@@ -267,6 +265,8 @@ exports.sendEstimateEmail = async (req, res) => {
         message: "Customer email not available"
       });
     }
+
+    /* GENERATE PDF FROM ESTIMATE PAGE */
 
     const pdfBuffer = await generatePDF(job._id);
 
@@ -299,12 +299,12 @@ Thank you for choosing Radnus Communication.
       message: "Estimate email sent successfully"
     });
 
-  } catch (err) {
+  } catch (error) {
 
-    console.error("SEND ESTIMATE ERROR:", err);
+    console.error("SEND ESTIMATE ERROR:", error);
 
     res.status(500).json({
-      message: err.message
+      message: error.message
     });
 
   }
