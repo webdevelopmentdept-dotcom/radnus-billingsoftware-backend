@@ -22,8 +22,9 @@
 
 // module.exports = generatePDF;
 
+const path = require("path");
 const PDFDocument = require("pdfkit");
-
+const logoPath = path.join(__dirname, "../assets/logo.png");
 const generatePDF = (job) => {
 
   return new Promise((resolve) => {
@@ -34,7 +35,6 @@ const generatePDF = (job) => {
     });
 
     const buffers = [];
-
     doc.on("data", buffers.push.bind(buffers));
     doc.on("end", () => resolve(Buffer.concat(buffers)));
 
@@ -46,103 +46,116 @@ const generatePDF = (job) => {
 
     doc.save();
     doc.rotate(-30, { origin: [300, 400] })
-       .fontSize(80)
-       .fillColor("#eeeeee")
-       .text("RADNUS", 100, 350, { align: "center" });
+      .fontSize(80)
+      .fillColor("#e6e6e6")
+      .text("RADNUS", 120, 360);
     doc.restore();
-
     doc.fillColor("#000");
 
     /* ---------------- HEADER ---------------- */
 
     doc.fontSize(16).font("Helvetica-Bold")
-       .text("RADNUS COMMUNICATION", 40, 40);
+      .text("RADNUS COMMUNICATION", 40, 40);
 
     doc.fontSize(10).font("Helvetica")
-       .text("242, Sinnaya Plaza, MG Road,", 40, 60)
-       .text("Puducherry - 605001", 40, 75)
-       .text("Phone: 81222 73355", 40, 90)
-       .text("Mon–Sat (10AM–7PM)", 40, 105)
-       .text("Website: www.radnus.in", 40, 120);
+      .text("242, Sinnaya Plaza, MG Road,", 40, 60)
+      .text("Puducherry - 605001", 40, 75)
+      .text("Phone: 81222 73355", 40, 90)
+      .text("Mon–Sat (10AM–7PM)", 40, 105)
+      .text("Website: www.radnus.in", 40, 120);
 
-    /* JOB SHEET RIGHT SIDE */
+    /* LOGO */
+
+    doc.image(logoPath, 250, 45, {
+      width: 90
+    });
 
     doc.fontSize(12).font("Helvetica-Bold")
-       .text("JOB SHEET", 430, 40);
+      .text("JOB SHEET", 450, 40);
 
     doc.fontSize(10).font("Helvetica")
-       .text(`Job No: ${job.jobSheetNo}`, 420, 65)
-       .text(`Created: ${new Date().toLocaleDateString()}`, 420, 80)
-       .text(`Delivery: ${job.service?.deliveryDate || "NIL"}`, 420, 95)
-       .text(`Engineer: ${job.service?.engineer || "NIL"}`, 420, 110);
+      .text(`Job No : ${job.jobSheetNo}`, 420, 65)
+      .text(`Created : ${new Date().toISOString().slice(0, 10)}`, 420, 80)
+      .text(`Delivery : ${job.service?.deliveryDate || "NIL"}`, 420, 95)
+      .text(`Engineer : ${job.service?.engineer || "NIL"}`, 420, 110);
 
     doc.moveTo(40, 140).lineTo(555, 140).stroke();
 
-    /* ---------------- CUSTOMER + DEVICE ---------------- */
+    /* ---------------- SECTION TITLE STYLE ---------------- */
 
-    doc.font("Helvetica-Bold").fontSize(11)
-       .text("CUSTOMER", 50, 160);
+    const sectionTitle = (text, x, y) => {
+      doc.rect(x - 10, y + 4, 4, 16).fill("#000");
+      doc.fillColor("#000")
+        .fontSize(12)
+        .font("Helvetica-Bold")
+        .text(text, x, y);
+    };
 
-    doc.font("Helvetica")
-       .rect(40, 175, 250, 95).stroke();
+    /* ---------------- CUSTOMER ---------------- */
 
-    doc.fontSize(10)
-       .text(`Name: ${job.customer?.name || "NIL"}`, 50, 190)
-       .text(`Phone: ${job.customer?.contact || "NIL"}`, 50, 205)
-       .text(`Email: ${job.customer?.email || "NIL"}`, 50, 220)
-       .text(`Address: ${job.customer?.address || "NIL"}`, 50, 235);
+    sectionTitle("CUSTOMER", 200, 160);
 
-    /* DEVICE */
+    doc.roundedRect(40, 180, 240, 100, 8)
+      .fillAndStroke("#f5f5f5", "#cfcfcf");
 
-    doc.font("Helvetica-Bold")
-       .text("DEVICE", 310, 160);
+    doc.fillColor("#000")
+      .fontSize(11)
+      .font("Helvetica")
+      .text(`Name: ${job.customer?.name || "NIL"}`, 60, 200, { align: "center", width: 200 })
+      .text(`Phone: ${job.customer?.contact || "NIL"}`, { align: "center" })
+      .text(`Email: ${job.customer?.email || "NIL"}`, { align: "center" })
+      .text(`Address: ${job.customer?.address || "NIL"}`, { align: "center" });
 
-    doc.font("Helvetica")
-       .rect(300, 175, 250, 95).stroke();
+    /* ---------------- DEVICE ---------------- */
 
-    doc.fontSize(10)
-       .text(`Brand: ${job.device?.make || "NIL"}`, 310, 190)
-       .text(`Model: ${job.device?.model || "NIL"}`, 310, 205)
-       .text(`IMEI: ${job.device?.imei || "NIL"}`, 310, 220);
+    sectionTitle("DEVICE", 430, 160);
 
-    /* ---------------- ESTIMATE AMOUNT ---------------- */
+    doc.roundedRect(310, 180, 240, 100, 8)
+      .fillAndStroke("#f5f5f5", "#cfcfcf");
 
-    doc.font("Helvetica-Bold")
-       .text("ESTIMATE AMOUNT", 50, 290);
+    doc.fillColor("#000")
+      .fontSize(11)
+      .text(`Brand: ${job.device?.make || "NIL"}`, 330, 205, { align: "center", width: 200 })
+      .text(`Model: ${job.device?.model || "NIL"}`, { align: "center" })
+      .text(`IMEI: ${job.device?.imei || "NIL"}`, { align: "center" });
 
-    /* dashed box */
+    /* ---------------- ESTIMATE ---------------- */
+
+    sectionTitle("ESTIMATE AMOUNT", 260, 310);
 
     doc.dash(5, { space: 3 })
-       .rect(40, 305, 510, 90)
-       .stroke();
+      .rect(40, 330, 510, 120)
+      .stroke();
 
     doc.undash();
 
-    doc.font("Helvetica").fontSize(11)
-       .text("Service Charge", 50, 325)
-       .text(`₹ ${service}`, 500, 325, { align: "right" });
+    doc.fontSize(12)
+      .font("Helvetica")
+      .text("Service Charge", 60, 355)
+      .text(`₹ ${service}`, 480, 355);
 
-    doc.text("Spare Charge", 50, 345)
-       .text(`₹ ${spare}`, 500, 345, { align: "right" });
+    doc.text("Spare Charge", 60, 380)
+      .text(`₹ ${spare}`, 480, 380);
 
-    doc.moveTo(50, 365).lineTo(550, 365).stroke();
+    doc.moveTo(60, 405).lineTo(530, 405).stroke("#cccccc");
 
     doc.font("Helvetica-Bold")
-       .text("Total Estimate", 50, 375)
-       .text(`₹ ${total}`, 500, 375, { align: "right" });
+      .text("Total Estimate", 60, 420)
+      .text(`₹ ${total}`, 480, 420);
 
     /* ---------------- SIGNATURE ---------------- */
 
-    const signY = 460;
+    const signY = 520;
 
-    doc.moveTo(60, signY).lineTo(180, signY).stroke();
-    doc.moveTo(240, signY).lineTo(360, signY).stroke();
-    doc.moveTo(420, signY).lineTo(540, signY).stroke();
+    doc.moveTo(60, signY).lineTo(200, signY).stroke();
+    doc.moveTo(240, signY).lineTo(380, signY).stroke();
+    doc.moveTo(420, signY).lineTo(560, signY).stroke();
 
-    doc.fontSize(9).font("Helvetica")
-       .text("Customer Signature", 65, signY + 5)
-       .text("For RADNUS", 270, signY + 5)
-       .text("Authorized Signatory", 430, signY + 5);
+    doc.fontSize(10)
+      .font("Helvetica")
+      .text("Customer Signature", 80, signY + 5)
+      .text("For RADNUS", 280, signY + 5)
+      .text("Authorized Signatory", 440, signY + 5);
 
     doc.end();
 
