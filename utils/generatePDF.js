@@ -137,11 +137,12 @@ const generatePDF = (job) => {
     let iy = boxTop + boxH + 12;
     sectionTitle("ISSUE", 40, iy);
     iy += 18;
+    
 
     doc.roundedRect(40, iy, 515, 50, 4)
        .fillAndStroke("#ffffff", "#cccccc");
     doc.fillColor("#000").fontSize(9.5).font("Helvetica")
-       .text(job.visualIssues?.issue || "", 50, iy + 12, { width: 495 });
+       .text(job.visualIssues?.[0]|| "", 50, iy + 12, { width: 495 });
 
     /* ─────────────────────────────────────────
        MOBILE CONDITION  –  table (NO HEADER ROW)
