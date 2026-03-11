@@ -257,7 +257,9 @@ exports.sendEstimateEmail = async (req, res) => {
     const job = await JobSheet.findById(req.params.id);
 
     if (!job) {
-      return res.status(404).json({ message: "Job not found" });
+      return res.status(404).json({
+        message: "Job not found"
+      });
     }
 
     if (!job.customer?.email) {
@@ -266,10 +268,10 @@ exports.sendEstimateEmail = async (req, res) => {
       });
     }
 
-    /* GENERATE PDF FROM ESTIMATE PAGE */
+    /* GENERATE PDF */
 
-    const pdfBuffer = await generatePDF(job._id);
-    console.log("PDF Buffer Length:", pdfBuffer?.length);
+    const pdfBuffer = await generateEstimatePDF(job);
+
     const total =
       Number(job.service?.serviceCharge || 0) +
       Number(job.service?.spareCharge || 0);
@@ -286,6 +288,8 @@ Estimated Amount: ₹${total}
 
 Thank you for choosing Radnus Communication.
 `;
+
+    /* SEND EMAIL */
 
     await sendEmail(
       job.customer.email,

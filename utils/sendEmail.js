@@ -37,24 +37,20 @@ const sendEmail = async (to, subject, text, pdfBuffer, fileName) => {
 
   try {
 
-    const attachments = [];
-
-    if (pdfBuffer) {
-      attachments.push({
-        filename: fileName || "Estimate.pdf",
-        content: pdfBuffer, // send buffer directly
-      });
-    }
-
     await resend.emails.send({
       from: "RADNUS <noreply@service.radnus.in>",
       to: [to],
       subject: subject,
       text: text,
-      attachments: attachments
+      attachments: [
+        {
+          filename: fileName,
+          content: pdfBuffer
+        }
+      ]
     });
 
-    console.log("Email sent successfully ✅");
+    console.log("Email sent successfully");
 
   } catch (error) {
 

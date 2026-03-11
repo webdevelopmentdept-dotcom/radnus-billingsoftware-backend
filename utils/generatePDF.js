@@ -22,34 +22,78 @@
 
 // module.exports = generatePDF;
 
-const chromium = require("@sparticuz/chromium");
-const puppeteer = require("puppeteer-core");
+const PDFDocument = require("pdfkit");
 
-const generatePDF = async (jobId) => {
+const generatePDF = (job) => {
 
-  const url = `https://service.radnus.in/estimate-bill/${jobId}?pdf=true`;
+  return new Promise((resolve, reject) => {
 
-  const browser = await puppeteer.launch({
-    args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
-    executablePath: await chromium.executablePath(),
-    headless: true
+    const doc = new PDFDocument({
+      size: "A4",
+      margin: 40
+    });
+
+    const buffers = [];
+
+    doc.on("data", buffers.push.bind(buffers));
+
+    doc.on("end", () => {
+      const pdfBuffer = Buffer.concat(buffers);
+      resolve(pdfBuffer);
+    });
+
+    /* HEADER */
+
+    doc.fontSize(18)
+       .text("RADNUS COMMUNICATION", { align: "center" });
+
+    doc.moveDown();
+
+    doc.fontSize(12)
+       .text(`Job Sheet No: ${job.jobSheetNo}`)
+       .text(`Date: ${new Date().toLocaleDateString()}`);
+
+    doc.moveDown();
+
+    /* CUSTOMER */
+
+    doc.text(`Customer Name: ${job.customer?.name || "NIL"}`);
+    doc.text(`Phone: ${job.customer?.contact || "NIL"}`);
+    doc.text(`Email: ${job.customer?.email || "NIL"}`);
+
+    doc.moveDown();
+
+    /* DEVICE */
+
+    doc.text(`Device Brand: ${job.device?.make || "NIL"}`);
+    doc.text(`Model: ${job.device?.model || "NIL"}`);
+    doc.text(`IMEI: ${job.device?.imei || "NIL"}`);
+
+    doc.moveDown();
+
+    const service = Number(job.service?.serviceCharge || 0);
+    const spare = Number(job.service?.spareCharge || 0);
+    const total = service + spare;
+
+    /* ESTIMATE */
+
+    doc.text(`Service Charge: ₹ ${service}`);
+    doc.text(`Spare Charge: ₹ ${spare}`);
+
+    doc.moveDown();
+
+    doc.fontSize(14)
+       .text(`Total Estimate: ₹ ${total}`, { underline: true });
+
+    doc.moveDown();
+    doc.moveDown();
+
+    doc.text("Customer Signature __________________");
+
+    doc.end();
+
   });
 
-  const page = await browser.newPage();
-
-  await page.goto(url, { waitUntil: "networkidle0" });
-
-  // ensure React finished rendering
-  await new Promise(resolve => setTimeout(resolve, 1500));
-
-  const pdfBuffer = await page.pdf({
-    format: "A4",
-    printBackground: true
-  });
-
-  await browser.close();
-
-  return pdfBuffer;
 };
 
 module.exports = generatePDF;
