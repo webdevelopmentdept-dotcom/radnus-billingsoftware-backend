@@ -24,7 +24,9 @@
 
 const path = require("path");
 const PDFDocument = require("pdfkit");
+
 const logoPath = path.join(__dirname, "../assets/logo.png");
+
 const generatePDF = (job) => {
 
   return new Promise((resolve) => {
@@ -70,14 +72,47 @@ const generatePDF = (job) => {
       width: 90
     });
 
-    doc.fontSize(12).font("Helvetica-Bold")
-      .text("JOB SHEET", 450, 40);
+    /* ---------------- JOB SHEET RIGHT PANEL ---------------- */
 
-    doc.fontSize(10).font("Helvetica")
-      .text(`Job No : ${job.jobSheetNo}`, 420, 65)
-      .text(`Created : ${new Date().toISOString().slice(0, 10)}`, 420, 80)
-      .text(`Delivery : ${job.service?.deliveryDate || "NIL"}`, 420, 95)
-      .text(`Engineer : ${job.service?.engineer || "NIL"}`, 420, 110);
+    const rightX = 420;
+    let y = 40;
+
+    doc.fontSize(14)
+       .font("Helvetica-Bold")
+       .text("JOB SHEET", rightX, y);
+
+    y += 30;
+
+    doc.font("Helvetica-Bold")
+       .fontSize(11)
+       .text("Job No", rightX, y);
+
+    doc.font("Helvetica")
+       .text(`:  ${job.jobSheetNo}`, rightX + 80, y);
+
+    y += 20;
+
+    doc.font("Helvetica-Bold")
+       .text("Created", rightX, y);
+
+    doc.font("Helvetica")
+       .text(`:  ${new Date().toISOString().slice(0,10)}`, rightX + 80, y);
+
+    y += 20;
+
+    doc.font("Helvetica-Bold")
+       .text("Delivery", rightX, y);
+
+    doc.font("Helvetica")
+       .text(`:  ${job.service?.deliveryDate || "NIL"}`, rightX + 80, y);
+
+    y += 20;
+
+    doc.font("Helvetica-Bold")
+       .text("Engineer", rightX, y);
+
+    doc.font("Helvetica")
+       .text(`:  ${job.service?.engineer || "NIL"}`, rightX + 80, y);
 
     doc.moveTo(40, 140).lineTo(555, 140).stroke();
 
