@@ -16,13 +16,13 @@ const generatePDF = (job) => {
     const total   = service + spare;
 
     /* ─────────────────────────────────────────
-       WATERMARK  –  centred diagonal, very light
+       WATERMARK  –  centred diagonal, VERY FAINT (nearly hidden)
     ───────────────────────────────────────── */
     doc.save();
     doc.rotate(-35, { origin: [297, 421] })
        .fontSize(110)
-       .fillOpacity(0.07)
-       .fillColor("#000000")
+       .fillOpacity(0.02)  // Changed from 0.07 to 0.02 for much lighter watermark
+       .fillColor("#cccccc")  // Changed to lighter gray
        .font("Helvetica-Bold")
        .text("RADNUS", 0, 370, { width: 595, align: "center" });
     doc.restore();
@@ -43,9 +43,9 @@ const generatePDF = (job) => {
        .text("Website: www.radnus.in",       40, 104);
 
     /* ─────────────────────────────────────────
-       LOGO - CENTERED
+       LOGO - CORRECTED POSITION
     ───────────────────────────────────────── */
-    doc.image(logoPath, 280, 50, { width: 90 });
+    doc.image(logoPath, 260, 50, { width: 90 });
 
     /* ─────────────────────────────────────────
        HEADER RIGHT – JOB SHEET
@@ -143,7 +143,7 @@ const generatePDF = (job) => {
        .text(job.service?.issue || "", 50, iy + 12, { width: 495 });
 
     /* ─────────────────────────────────────────
-       MOBILE CONDITION  –  table
+       MOBILE CONDITION  –  table (FIXED STRUCTURE)
     ───────────────────────────────────────── */
     let mc = iy + 62;
     sectionTitle("MOBILE CONDITION", 40, mc);
@@ -154,28 +154,17 @@ const generatePDF = (job) => {
     const TX      = 40;
     const RH      = 28;
 
-    // Header row
-    doc.rect(TX, mc, 515, RH).fillAndStroke("#e8e8e8", "#999999");
-    const hdrLabels = ["Charger", null, "Pattern / PIN", null];
-    let hx = TX;
-    hdrLabels.forEach((h, i) => {
-      if (h) {
-        doc.fillColor("#000").fontSize(9.5).font("Helvetica-Bold")
-           .text(h, hx + 7, mc + 7, { width: COL[i] - 8, lineBreak: false });
-      }
-      hx += COL[i];
-    });
-
-    // Data rows - use "Yes/No" instead of text values
+    // DATA ROWS ONLY - NO HEADER ROW (removed the first header row)
     const condRows = [
       ["Charger",     cond.charger    ? "Yes" : (cond.charger === "" ? "" : "No"), "Pattern / PIN", cond.patternPin  || ""],
       ["Back",        cond.back       ? "Yes" : (cond.back === "" ? "" : "No"),     "Memory Card",   cond.memoryCard ? "Yes" : (cond.memoryCard === "" ? "" : "No")],
       ["SIM",         cond.sim        ? "Yes" : (cond.sim === "" ? "" : "No"),      "",              ""],
     ];
 
+    // Draw ONLY the data rows with alternating colors
     condRows.forEach((row, ri) => {
-      const ry = mc + RH * (ri + 1);
-      const bg = ri % 2 === 0 ? "#ffffff" : "#f9f9f9";
+      const ry = mc + RH * ri;
+      const bg = ri % 2 === 0 ? "#e8e8e8" : "#ffffff";
       doc.rect(TX, ry, 515, RH).fillAndStroke(bg, "#999999");
       let cx = TX;
       row.forEach((cell, ci) => {
@@ -189,7 +178,7 @@ const generatePDF = (job) => {
     /* ─────────────────────────────────────────
        ESTIMATE AMOUNT
     ───────────────────────────────────────── */
-    let ey = mc + RH * (condRows.length + 1) + 14;
+    let ey = mc + RH * condRows.length + 14;
     sectionTitle("ESTIMATE AMOUNT", 40, ey);
     ey += 18;
 
