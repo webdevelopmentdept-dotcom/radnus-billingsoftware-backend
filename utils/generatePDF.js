@@ -26,23 +26,31 @@ const html_to_pdf = require("html-pdf-node");
 
 const generatePDF = async (jobId) => {
 
-  const url = `https://service.radnus.in/estimate-bill/${jobId}?pdf=true`;
+  try {
 
-  const options = {
-    format: "A4",
-    printBackground: true,
-    waitUntil: "networkidle0",
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox"
-    ]
-  };
+    const url = `https://service.radnus.in/estimate-bill/${jobId}?pdf=true`;
 
-  const file = { url };
+    const options = {
+      format: "A4",
+      printBackground: true,
+      waitUntil: "networkidle0",
+      args: ["--no-sandbox","--disable-setuid-sandbox"]
+    };
 
-  const pdfBuffer = await html_to_pdf.generatePdf(file, options);
+    const file = { url };
 
-  return pdfBuffer;
+    const pdfBuffer = await html_to_pdf.generatePdf(file, options);
+
+    return pdfBuffer;
+
+  } catch (error) {
+
+    console.error("PDF GENERATION ERROR:", error);
+
+    throw error;
+
+  }
+
 };
 
 module.exports = generatePDF;

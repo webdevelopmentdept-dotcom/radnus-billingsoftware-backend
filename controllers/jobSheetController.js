@@ -176,53 +176,145 @@ exports.updateJobSheet = async (req, res) => {
 
 
 /* ================= SEND ESTIMATE EMAIL ================= */
+// exports.sendEstimateEmail = async (req, res) => {
+
+//   try {
+
+//     console.log("STEP 1 - API HIT");
+
+//     const job = await JobSheet.findById(req.params.id);
+
+//     console.log("STEP 2 - JOB FETCHED");
+
+//     if (!job) {
+//       return res.status(404).json({
+//         message: "Job not found"
+//       });
+//     }
+
+//     if (!job.customer?.email) {
+//       return res.status(400).json({
+//         message: "Customer email not available"
+//       });
+//     }
+
+//     console.log("STEP 3 - GENERATING PDF");
+//     console.log("Generating PDF for:", job._id);
+
+//     const pdfBuffer = await generatePDF(job._id);
+
+//     if (!pdfBuffer) {
+//       return res.status(500).json({
+//         message: "PDF generation failed"
+//       });
+//     }
+
+//     console.log("STEP 4 - PDF GENERATED");
+
+//     const subject = `Estimate - ${job.jobSheetNo}`;
+
+//     const text = `
+// Dear ${job.customer.name},
+
+// Please find your estimate attached.
+
+// Thank you,
+// RADNUS COMMUNICATION
+// `;
+
+//     console.log("STEP 5 - SENDING EMAIL");
+
+//     await sendEmail(
+//       job.customer.email,
+//       subject,
+//       text,
+//       pdfBuffer,
+//       `Estimate-${job.jobSheetNo}.pdf`
+//     );
+
+//     console.log("STEP 6 - EMAIL SENT");
+
+//     res.json({
+//       message: "Estimate sent with PDF ✅"
+//     });
+
+//   } catch (err) {
+
+//     console.error("ERROR OCCURRED:", err);
+
+//     res.status(500).json({
+//       message: err.message
+//     });
+
+//   }
+
+// };
+
 exports.sendEstimateEmail = async (req, res) => {
 
   try {
 
-    console.log("STEP 1 - API HIT");
+    console.log("====================================");
+    console.log("SEND ESTIMATE EMAIL STARTED");
+    console.log("Job ID:", req.params.id);
+
+    /* ---------------- GET JOB ---------------- */
 
     const job = await JobSheet.findById(req.params.id);
 
-    console.log("STEP 2 - JOB FETCHED");
-
     if (!job) {
+      console.log("❌ Job not found");
       return res.status(404).json({
         message: "Job not found"
       });
     }
 
+    console.log("Job Found:", job.jobSheetNo);
+
+    /* ---------------- CHECK EMAIL ---------------- */
+
     if (!job.customer?.email) {
+
+      console.log("❌ Customer email missing");
+
       return res.status(400).json({
         message: "Customer email not available"
       });
+
     }
 
-    console.log("STEP 3 - GENERATING PDF");
-    console.log("Generating PDF for:", job._id);
+    console.log("Customer Email:", job.customer.email);
+
+    /* ---------------- GENERATE PDF ---------------- */
+
+    console.log("Generating PDF...");
 
     const pdfBuffer = await generatePDF(job._id);
 
-    if (!pdfBuffer) {
-      return res.status(500).json({
-        message: "PDF generation failed"
-      });
-    }
+    console.log("PDF generated successfully");
 
-    console.log("STEP 4 - PDF GENERATED");
+    /* ---------------- CALCULATE TOTAL ---------------- */
+
+    const total =
+      Number(job.service?.serviceCharge || 0) +
+      Number(job.service?.spareCharge || 0);
 
     const subject = `Estimate - ${job.jobSheetNo}`;
 
     const text = `
 Dear ${job.customer.name},
 
-Please find your estimate attached.
+Here is your service estimate.
 
-Thank you,
-RADNUS COMMUNICATION
+Estimate No: ${job.jobSheetNo}
+Estimated Amount: ₹${total}
+
+Thank you for choosing Radnus Communication.
 `;
 
-    console.log("STEP 5 - SENDING EMAIL");
+    /* ---------------- SEND EMAIL ---------------- */
+
+    console.log("Sending email...");
 
     await sendEmail(
       job.customer.email,
@@ -232,18 +324,19 @@ RADNUS COMMUNICATION
       `Estimate-${job.jobSheetNo}.pdf`
     );
 
-    console.log("STEP 6 - EMAIL SENT");
+    console.log("✅ Email sent successfully");
+    console.log("====================================");
 
     res.json({
-      message: "Estimate sent with PDF ✅"
+      message: "Estimate email sent successfully"
     });
 
-  } catch (err) {
+  } catch (error) {
 
-    console.error("ERROR OCCURRED:", err);
+    console.error("❌ SEND ESTIMATE ERROR:", error);
 
     res.status(500).json({
-      message: err.message
+      message: error.message
     });
 
   }
