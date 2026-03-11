@@ -36,22 +36,19 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const sendEmail = async (to, subject, text, pdfBuffer, fileName) => {
   try {
 
-    const attachments = pdfBuffer
-      ? [
-          {
-            filename: fileName || "file.pdf",
-            content: pdfBuffer.toString("base64"),
-            encoding: "base64"
-          }
-        ]
-      : [];
-
     await resend.emails.send({
       from: "RADNUS <noreply@service.radnus.in>",
       to: [to],
       subject: subject,
       text: text,
-      attachments: attachments
+      attachments: [
+        {
+          filename: fileName || "file.pdf",
+          content: pdfBuffer.toString("base64"),
+          encoding: "base64",
+          contentType: "application/pdf"
+        }
+      ]
     });
 
     console.log("Email sent successfully ✅");
