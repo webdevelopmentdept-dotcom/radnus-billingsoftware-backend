@@ -270,7 +270,7 @@ exports.sendEstimateEmail = async (req, res) => {
 
     /* GENERATE PDF */
 
-    const pdfBuffer = await generateEstimatePDF(job);
+    const pdfBuffer = await generatePDF(job);
 
     const total =
       Number(job.service?.serviceCharge || 0) +
