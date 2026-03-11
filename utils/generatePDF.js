@@ -22,35 +22,31 @@
 
 // module.exports = generatePDF;
 
-const html_to_pdf = require("html-pdf-node");
+const puppeteer = require("puppeteer");
 
 const generatePDF = async (jobId) => {
 
-  try {
+  const url = `https://service.radnus.in/estimate-bill/${jobId}?pdf=true`;
 
-    const url = `https://service.radnus.in/estimate-bill/${jobId}?pdf=true`;
+  const browser = await puppeteer.launch({
+    headless: "new",
+    args: ["--no-sandbox", "--disable-setuid-sandbox"]
+  });
 
-    const options = {
-      format: "A4",
-      printBackground: true,
-      waitUntil: "networkidle0",
-      args: ["--no-sandbox","--disable-setuid-sandbox"]
-    };
+  const page = await browser.newPage();
 
-    const file = { url };
+  await page.goto(url, {
+    waitUntil: "networkidle0"
+  });
 
-    const pdfBuffer = await html_to_pdf.generatePdf(file, options);
+  const pdf = await page.pdf({
+    format: "A4",
+    printBackground: true
+  });
 
-    return pdfBuffer;
+  await browser.close();
 
-  } catch (error) {
-
-    console.error("PDF GENERATION ERROR:", error);
-
-    throw error;
-
-  }
-
+  return pdf;
 };
 
 module.exports = generatePDF;

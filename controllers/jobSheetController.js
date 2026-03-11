@@ -254,46 +254,21 @@ exports.sendEstimateEmail = async (req, res) => {
 
   try {
 
-    console.log("====================================");
-    console.log("SEND ESTIMATE EMAIL STARTED");
-    console.log("Job ID:", req.params.id);
-
-    /* ---------------- GET JOB ---------------- */
-
     const job = await JobSheet.findById(req.params.id);
 
     if (!job) {
-      console.log("❌ Job not found");
       return res.status(404).json({
         message: "Job not found"
       });
     }
 
-    console.log("Job Found:", job.jobSheetNo);
-
-    /* ---------------- CHECK EMAIL ---------------- */
-
     if (!job.customer?.email) {
-
-      console.log("❌ Customer email missing");
-
       return res.status(400).json({
         message: "Customer email not available"
       });
-
     }
 
-    console.log("Customer Email:", job.customer.email);
-
-    /* ---------------- GENERATE PDF ---------------- */
-
-    console.log("Generating PDF...");
-
     const pdfBuffer = await generatePDF(job._id);
-
-    console.log("PDF generated successfully");
-
-    /* ---------------- CALCULATE TOTAL ---------------- */
 
     const total =
       Number(job.service?.serviceCharge || 0) +
@@ -312,10 +287,6 @@ Estimated Amount: ₹${total}
 Thank you for choosing Radnus Communication.
 `;
 
-    /* ---------------- SEND EMAIL ---------------- */
-
-    console.log("Sending email...");
-
     await sendEmail(
       job.customer.email,
       subject,
@@ -324,19 +295,16 @@ Thank you for choosing Radnus Communication.
       `Estimate-${job.jobSheetNo}.pdf`
     );
 
-    console.log("✅ Email sent successfully");
-    console.log("====================================");
-
     res.json({
       message: "Estimate email sent successfully"
     });
 
-  } catch (error) {
+  } catch (err) {
 
-    console.error("❌ SEND ESTIMATE ERROR:", error);
+    console.error("SEND ESTIMATE ERROR:", err);
 
     res.status(500).json({
-      message: error.message
+      message: err.message
     });
 
   }
