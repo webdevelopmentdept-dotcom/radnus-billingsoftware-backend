@@ -4,6 +4,7 @@ const PDFDocument = require("pdfkit");
 const logoPath = path.join(__dirname, "../assets/logo.png");
 
 const generatePDF = (job) => {
+  console.log("-- data of (job) --",job)
   return new Promise((resolve) => {
 
     const doc = new PDFDocument({ size: "A4", margin: 40 });
@@ -188,7 +189,7 @@ const generatePDF = (job) => {
     doc.undash();
 
     doc.fillColor("#000").fontSize(28).font("Helvetica-Bold")
-       .text(`\u20B9 ${total || ""}`, 40, ey + 12, { align: "center", width: 515, lineBreak: false });
+       .text(`${total || ""}`, 40, ey + 12, { align: "center", width: 515, lineBreak: false });
 
     /* ─────────────────────────────────────────
        TERMS & CONDITIONS
@@ -235,17 +236,17 @@ const generatePDF = (job) => {
     /* ─────────────────────────────────────────
        SIGNATURES
     ───────────────────────────────────────── */
-    const signY = termY + 20;
+    // const signY = termY + 20;
 
-    doc.lineWidth(1).strokeColor("#000");
-    doc.moveTo(50,  signY).lineTo(175, signY).stroke();
-    doc.moveTo(225, signY).lineTo(370, signY).stroke();
-    doc.moveTo(415, signY).lineTo(555, signY).stroke();
+    // doc.lineWidth(1).strokeColor("#000");
+    // doc.moveTo(50,  signY).lineTo(175, signY).stroke();
+    // doc.moveTo(225, signY).lineTo(370, signY).stroke();
+    // doc.moveTo(415, signY).lineTo(555, signY).stroke();
 
-    doc.fontSize(8.5).font("Helvetica").fillColor("#000")
-       .text("Customer Signature", 55,  signY + 5, { lineBreak: false })
-       .text("For RADNUS",         255, signY + 5, { lineBreak: false })
-       .text("Authorized Signatory", 420, signY + 5, { lineBreak: false });
+    // doc.fontSize(8.5).font("Helvetica").fillColor("#000")
+    //    .text("Customer Signature", 55,  signY + 5, { lineBreak: false })
+    //    .text("For RADNUS",         255, signY + 5, { lineBreak: false })
+    //    .text("Authorized Signatory", 420, signY + 5, { lineBreak: false });
 
     doc.end();
   });
