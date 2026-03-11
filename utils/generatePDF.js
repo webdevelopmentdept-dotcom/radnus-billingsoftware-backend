@@ -30,9 +30,9 @@ const generatePDF = async (jobId) => {
   const url = `https://service.radnus.in/estimate-bill/${jobId}?pdf=true`;
 
   const browser = await puppeteer.launch({
-    args: chromium.args,
+    args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
     executablePath: await chromium.executablePath(),
-    headless: chromium.headless
+    headless: true
   });
 
   const page = await browser.newPage();
@@ -41,14 +41,23 @@ const generatePDF = async (jobId) => {
     waitUntil: "networkidle0"
   });
 
-  const pdf = await page.pdf({
+  // small delay to ensure React finishes rendering
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  const pdfBuffer = await page.pdf({
     format: "A4",
-    printBackground: true
+    printBackground: true,
+    margin: {
+      top: "10mm",
+      bottom: "10mm",
+      left: "10mm",
+      right: "10mm"
+    }
   });
 
   await browser.close();
 
-  return pdf;
+  return pdfBuffer;
 };
 
 module.exports = generatePDF;

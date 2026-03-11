@@ -34,15 +34,15 @@ const { Resend } = require("resend");
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendEmail = async (to, subject, text, pdfBuffer, fileName) => {
-
   try {
 
     const attachments = pdfBuffer
       ? [
           {
             filename: fileName || "file.pdf",
-            content: pdfBuffer.toString("base64"), // important fix
-          },
+            content: pdfBuffer.toString("base64"),
+            encoding: "base64"
+          }
         ]
       : [];
 
@@ -51,18 +51,15 @@ const sendEmail = async (to, subject, text, pdfBuffer, fileName) => {
       to: [to],
       subject: subject,
       text: text,
-      attachments: attachments,
+      attachments: attachments
     });
 
     console.log("Email sent successfully ✅");
 
   } catch (error) {
-
     console.error("EMAIL ERROR:", error);
     throw error;
-
   }
-
 };
 
 module.exports = sendEmail;
