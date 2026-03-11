@@ -36,93 +36,113 @@ const generatePDF = (job) => {
     const buffers = [];
 
     doc.on("data", buffers.push.bind(buffers));
-
-    doc.on("end", () => {
-      resolve(Buffer.concat(buffers));
-    });
+    doc.on("end", () => resolve(Buffer.concat(buffers)));
 
     const service = Number(job.service?.serviceCharge || 0);
     const spare = Number(job.service?.spareCharge || 0);
     const total = service + spare;
 
+    /* ---------------- WATERMARK ---------------- */
+
+    doc.save();
+    doc.rotate(-30, { origin: [300, 400] })
+       .fontSize(80)
+       .fillColor("#eeeeee")
+       .text("RADNUS", 100, 350, { align: "center" });
+    doc.restore();
+
+    doc.fillColor("#000");
+
     /* ---------------- HEADER ---------------- */
 
-    doc.fontSize(16).text("RADNUS COMMUNICATION", 40, 40);
+    doc.fontSize(16).font("Helvetica-Bold")
+       .text("RADNUS COMMUNICATION", 40, 40);
+
+    doc.fontSize(10).font("Helvetica")
+       .text("242, Sinnaya Plaza, MG Road,", 40, 60)
+       .text("Puducherry - 605001", 40, 75)
+       .text("Phone: 81222 73355", 40, 90)
+       .text("Mon–Sat (10AM–7PM)", 40, 105)
+       .text("Website: www.radnus.in", 40, 120);
+
+    /* JOB SHEET RIGHT SIDE */
+
+    doc.fontSize(12).font("Helvetica-Bold")
+       .text("JOB SHEET", 430, 40);
+
+    doc.fontSize(10).font("Helvetica")
+       .text(`Job No: ${job.jobSheetNo}`, 420, 65)
+       .text(`Created: ${new Date().toLocaleDateString()}`, 420, 80)
+       .text(`Delivery: ${job.service?.deliveryDate || "NIL"}`, 420, 95)
+       .text(`Engineer: ${job.service?.engineer || "NIL"}`, 420, 110);
+
+    doc.moveTo(40, 140).lineTo(555, 140).stroke();
+
+    /* ---------------- CUSTOMER + DEVICE ---------------- */
+
+    doc.font("Helvetica-Bold").fontSize(11)
+       .text("CUSTOMER", 50, 160);
+
+    doc.font("Helvetica")
+       .rect(40, 175, 250, 95).stroke();
 
     doc.fontSize(10)
-      .text("242, Sinnaya Plaza, MG Road,", 40, 60)
-      .text("Puducherry - 605001", 40, 75)
-      .text("Phone: 81222 73355", 40, 90)
-      .text("Mon–Sat (10AM–7PM)", 40, 105)
-      .text("Website: www.radnus.in", 40, 120);
+       .text(`Name: ${job.customer?.name || "NIL"}`, 50, 190)
+       .text(`Phone: ${job.customer?.contact || "NIL"}`, 50, 205)
+       .text(`Email: ${job.customer?.email || "NIL"}`, 50, 220)
+       .text(`Address: ${job.customer?.address || "NIL"}`, 50, 235);
 
-    doc.fontSize(12)
-      .text("JOB SHEET", 420, 40);
+    /* DEVICE */
+
+    doc.font("Helvetica-Bold")
+       .text("DEVICE", 310, 160);
+
+    doc.font("Helvetica")
+       .rect(300, 175, 250, 95).stroke();
 
     doc.fontSize(10)
-      .text(`Job No: ${job.jobSheetNo}`, 420, 60)
-      .text(`Created: ${new Date().toLocaleDateString()}`, 420, 75)
-      .text(`Delivery: ${job.service?.deliveryDate || "NIL"}`, 420, 90)
-      .text(`Engineer: ${job.service?.engineer || "NIL"}`, 420, 105);
+       .text(`Brand: ${job.device?.make || "NIL"}`, 310, 190)
+       .text(`Model: ${job.device?.model || "NIL"}`, 310, 205)
+       .text(`IMEI: ${job.device?.imei || "NIL"}`, 310, 220);
 
-    doc.moveTo(40, 140)
-       .lineTo(550, 140)
+    /* ---------------- ESTIMATE AMOUNT ---------------- */
+
+    doc.font("Helvetica-Bold")
+       .text("ESTIMATE AMOUNT", 50, 290);
+
+    /* dashed box */
+
+    doc.dash(5, { space: 3 })
+       .rect(40, 305, 510, 90)
        .stroke();
 
-    /* ---------------- CUSTOMER BOX ---------------- */
+    doc.undash();
 
-    doc.rect(40, 160, 250, 110).stroke();
+    doc.font("Helvetica").fontSize(11)
+       .text("Service Charge", 50, 325)
+       .text(`₹ ${service}`, 500, 325, { align: "right" });
 
-    doc.fontSize(11).text("CUSTOMER", 50, 165);
+    doc.text("Spare Charge", 50, 345)
+       .text(`₹ ${spare}`, 500, 345, { align: "right" });
 
-    doc.fontSize(10)
-      .text(`Name: ${job.customer?.name || "NIL"}`, 50, 185)
-      .text(`Phone: ${job.customer?.contact || "NIL"}`, 50, 200)
-      .text(`Email: ${job.customer?.email || "NIL"}`, 50, 215)
-      .text(`Address: ${job.customer?.address || "NIL"}`, 50, 230);
+    doc.moveTo(50, 365).lineTo(550, 365).stroke();
 
-    /* ---------------- DEVICE BOX ---------------- */
-
-    doc.rect(300, 160, 250, 110).stroke();
-
-    doc.fontSize(11).text("DEVICE", 310, 165);
-
-    doc.fontSize(10)
-      .text(`Brand: ${job.device?.make || "NIL"}`, 310, 185)
-      .text(`Model: ${job.device?.model || "NIL"}`, 310, 200)
-      .text(`IMEI: ${job.device?.imei || "NIL"}`, 310, 215);
-
-    /* ---------------- ESTIMATE BOX ---------------- */
-
-    doc.rect(40, 290, 510, 110).stroke();
-
-    doc.fontSize(11).text("ESTIMATE AMOUNT", 50, 295);
-
-    doc.fontSize(10)
-      .text(`Service Charge`, 50, 320)
-      .text(`₹ ${service}`, 500, 320, { align: "right" });
-
-    doc.text(`Spare Charge`, 50, 340)
-       .text(`₹ ${spare}`, 500, 340, { align: "right" });
-
-    doc.moveTo(40, 360)
-       .lineTo(550, 360)
-       .stroke();
-
-    doc.fontSize(11)
-      .text(`Total Estimate`, 50, 370)
-      .text(`₹ ${total}`, 500, 370, { align: "right" });
+    doc.font("Helvetica-Bold")
+       .text("Total Estimate", 50, 375)
+       .text(`₹ ${total}`, 500, 375, { align: "right" });
 
     /* ---------------- SIGNATURE ---------------- */
 
-    doc.moveTo(40, 460).lineTo(180, 460).stroke();
-    doc.moveTo(240, 460).lineTo(380, 460).stroke();
-    doc.moveTo(410, 460).lineTo(550, 460).stroke();
+    const signY = 460;
 
-    doc.fontSize(10)
-      .text("Customer Signature", 55, 465)
-      .text("For RADNUS", 275, 465)
-      .text("Authorized Signatory", 430, 465);
+    doc.moveTo(60, signY).lineTo(180, signY).stroke();
+    doc.moveTo(240, signY).lineTo(360, signY).stroke();
+    doc.moveTo(420, signY).lineTo(540, signY).stroke();
+
+    doc.fontSize(9).font("Helvetica")
+       .text("Customer Signature", 65, signY + 5)
+       .text("For RADNUS", 270, signY + 5)
+       .text("Authorized Signatory", 430, signY + 5);
 
     doc.end();
 
