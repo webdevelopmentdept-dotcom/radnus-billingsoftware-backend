@@ -92,9 +92,7 @@ const generateInvoicePDF = (job) => {
     doc.font("Helvetica");
 
     doc.text(job.device?.make || "-", 55, rowY + 8);
-
     doc.text(job.device?.model || "-", 120, rowY + 8);
-
     doc.text(job.device?.imei || "-", 240, rowY + 8);
 
     doc.text(
@@ -104,17 +102,16 @@ const generateInvoicePDF = (job) => {
       { width: 120 }
     );
 
-    doc.text(`₹ ${service}`, 440, rowY + 8);
-
-    doc.text(`₹ ${spare}`, 505, rowY + 8);
+    doc.text(`\u20B9 ${service}`, 440, rowY + 8);
+    doc.text(`\u20B9 ${spare}`, 505, rowY + 8);
 
     /* ---------------- TOTAL ---------------- */
 
     doc.font("Helvetica")
-      .text(`Sub Total : ₹${total}`, 420, rowY + 45);
+      .text(`Sub Total : \u20B9 ${total}`, 420, rowY + 45);
 
     doc.font("Helvetica-Bold")
-      .text(`Grand Total : ₹${total.toFixed(2)}`, 420, rowY + 60);
+      .text(`Grand Total : \u20B9 ${total.toFixed(2)}`, 420, rowY + 60);
 
     /* ---------------- TERMS BOX ---------------- */
 
@@ -124,46 +121,46 @@ const generateInvoicePDF = (job) => {
       .font("Helvetica-Bold")
       .text("TERMS & CONDITIONS", 220, termsY);
 
-    doc.roundedRect(60, termsY + 20, 475, 90, 5).stroke();
+    doc.roundedRect(60, termsY + 20, 475, 110, 5).stroke();
 
     doc.font("Helvetica");
 
     const terms = [
       "Replaced parts will not be returned.",
       "Data may be lost during repair/software upgradation.",
-      "Company bears no responsibility if equipment not collected within 45 days.",
-      "Remove SIM card and memory card before repair.",
-      "No delivery without customer copy.",
-      "Additional faults during service are not responsibility.",
-      "Warranty only for services and spares used."
+      "Company bears no responsibility, whatsoever if equipment is not collected within 45 days from the date of receipt.",
+      "Please make sure that you have removed your sim card and/or memory card from your phone. Gadget hub does not accept responsibility for loss of these items.",
+      "No delivery will be made without the customer's copy of the job order.",
+      "Company bears no responsibility, if any fault occurs on additional fault findings while servicing on booked complaints.",
+      "Only checking warranty for all services and spares used."
     ];
 
     terms.forEach((t, i) => {
-      doc.text(`${i + 1}. ${t}`, 80, termsY + 30 + (i * 12));
+      doc.text(`${i + 1}. ${t}`, 80, termsY + 30 + (i * 14), { width: 430 });
     });
 
     /* ---------------- TAMIL TERMS ---------------- */
 
-    const tamilY = termsY + 130;
+    const tamilY = termsY + 150;
 
     doc.fontSize(10)
       .font(tamilFont)
       .text("விதிமுறைகள்", 250, tamilY);
 
-    doc.roundedRect(60, tamilY + 20, 475, 110, 5).stroke();
+    doc.roundedRect(60, tamilY + 20, 475, 120, 5).stroke();
 
     const tamil = [
       "மாற்றப்பட்ட உதிரிப்பாகங்கள் திருப்பி வழங்கப்படமாட்டாது.",
-      "பழுது பார்க்கும்போது தகவல்கள் இழக்க நேரிடலாம்.",
-      "45 நாட்களுக்குள் பொருள் பெறப்படாவிட்டால் நிறுவனம் பொறுப்பல்ல.",
-      "சிம் மற்றும் மெமரி கார்டை அகற்றி வழங்கவும்.",
+      "பழுது பார்க்கும்போது / சாப்ட்வேர் அப்டேட் செய்யும் போது தகவல்கள் இழக்க நேரிடலாம்.",
+      "பெறப்பட்ட நாளிலிருந்து 45 நாட்களுக்குள் பொருள் பெறப்படாவிட்டால் நிறுவனம் பொறுப்பல்ல.",
+      "தயவுசெய்து உங்கள் சிம் கார்டு மற்றும் மெமரி கார்டை அகற்றி வழங்கவும்.",
       "வேலை ஒப்பந்த நகல் இல்லாமல் பொருள் வழங்கப்படமாட்டாது.",
-      "புதிய குறைகள் ஏற்பட்டால் நிறுவனம் பொறுப்பல்ல.",
-      "சேவை மற்றும் உதிரிப்பாகங்களுக்கு மட்டுமே உத்தரவாதம்."
+      "சரிசெய்யும் போது புதிய குறைகள் ஏற்பட்டால் நிறுவனம் பொறுப்பல்ல.",
+      "சேவை மற்றும் உதிரிப்பாகங்களுக்கு மட்டுமே உத்தரவாதம் வழங்கப்படும்."
     ];
 
     tamil.forEach((t, i) => {
-      doc.text(`${i + 1}. ${t}`, 80, tamilY + 35 + (i * 13));
+      doc.text(`${i + 1}. ${t}`, 80, tamilY + 35 + (i * 15), { width: 430 });
     });
 
     /* ---------------- SIGNATURE ---------------- */
