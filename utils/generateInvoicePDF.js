@@ -102,16 +102,12 @@ const generateInvoicePDF = (job) => {
       { width: 120 }
     );
 
-    doc.text(`\u20B9 ${service}`, 440, rowY + 8);
-    doc.text(`\u20B9 ${spare}`, 505, rowY + 8);
+ doc.font(tamilFont);
 
-    /* ---------------- TOTAL ---------------- */
-
-    doc.font("Helvetica")
-      .text(`Sub Total : \u20B9 ${total}`, 420, rowY + 45);
-
-    doc.font("Helvetica-Bold")
-      .text(`Grand Total : \u20B9 ${total.toFixed(2)}`, 420, rowY + 60);
+doc.text(`₹ ${service}`, 440, rowY + 8);
+doc.text(`₹ ${spare}`, 505, rowY + 8);
+doc.text(`Sub Total : ₹ ${total}`, 420, rowY + 45);
+doc.text(`Grand Total : ₹ ${total.toFixed(2)}`, 420, rowY + 60);
 
     /* ---------------- TERMS BOX ---------------- */
 
@@ -121,7 +117,7 @@ const generateInvoicePDF = (job) => {
       .font("Helvetica-Bold")
       .text("TERMS & CONDITIONS", 220, termsY);
 
-    doc.roundedRect(60, termsY + 20, 475, 110, 5).stroke();
+   doc.roundedRect(60, termsY + 20, 475, 150, 5).stroke();
 
     doc.font("Helvetica");
 
@@ -135,19 +131,26 @@ const generateInvoicePDF = (job) => {
       "Only checking warranty for all services and spares used."
     ];
 
-    terms.forEach((t, i) => {
-      doc.text(`${i + 1}. ${t}`, 80, termsY + 30 + (i * 14), { width: 430 });
-    });
+   doc.font("Helvetica");
 
+let y = termsY + 30;
+
+terms.forEach((t, i) => {
+  doc.text(`${i + 1}. ${t}`, 80, y, {
+    width: 430,
+    align: "left"
+  });
+  y = doc.y + 5;
+});
     /* ---------------- TAMIL TERMS ---------------- */
 
-    const tamilY = termsY + 150;
+   const tamilY = y + 20;
 
     doc.fontSize(10)
       .font(tamilFont)
       .text("விதிமுறைகள்", 250, tamilY);
 
-    doc.roundedRect(60, tamilY + 20, 475, 120, 5).stroke();
+    doc.roundedRect(60, tamilY + 20, 475, 160, 5).stroke();
 
     const tamil = [
       "மாற்றப்பட்ட உதிரிப்பாகங்கள் திருப்பி வழங்கப்படமாட்டாது.",
@@ -159,14 +162,19 @@ const generateInvoicePDF = (job) => {
       "சேவை மற்றும் உதிரிப்பாகங்களுக்கு மட்டுமே உத்தரவாதம் வழங்கப்படும்."
     ];
 
-    tamil.forEach((t, i) => {
-      doc.text(`${i + 1}. ${t}`, 80, tamilY + 35 + (i * 15), { width: 430 });
-    });
+  doc.font(tamilFont);
+
+let ty = tamilY + 35;
+
+tamil.forEach((t, i) => {
+  doc.text(`${i + 1}. ${t}`, 80, ty, {
+    width: 430
+  });
+  ty = doc.y + 6;
+});
 
     /* ---------------- SIGNATURE ---------------- */
-
-    doc.font("Helvetica")
-      .text("Authorized Signature", 420, 760);
+doc.text("Authorized Signature", 420, doc.page.height - 60);
 
     doc.end();
 
