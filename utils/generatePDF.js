@@ -3,7 +3,7 @@ const PDFDocument = require("pdfkit");
 
 const logoPath = path.join(__dirname, "../assets/logo.png");
 
-const generatePDF = (job) => {
+const generatePDF = (job, type = "estimate") => {
   console.log("-- data of (job) --",job)
   return new Promise((resolve) => {
 
@@ -54,7 +54,7 @@ const generatePDF = (job) => {
     const rX = 410;
 
     doc.fontSize(13).font("Helvetica-Bold")
-       .text("JOB SHEET", rX, 40);
+     .text(type === "invoice" ? "INVOICE BILL" : "JOB SHEET", rX, 40);
 
     // Safe date formatter
     const fmtDate = (val) => {
@@ -186,7 +186,7 @@ const generatePDF = (job) => {
        ESTIMATE AMOUNT - WITH BREAKDOWN
     ───────────────────────────────────────── */
     let ey = mc + RH * condRows.length + 14;
-    sectionTitle("ESTIMATE AMOUNT", 40, ey);
+    sectionTitle(type === "invoice" ? "INVOICE AMOUNT" : "ESTIMATE AMOUNT", 40, ey);
     ey += 18;
 
     // Dashed border box
@@ -213,7 +213,7 @@ const generatePDF = (job) => {
 
     // Total Estimate row
     doc.fillColor("#000").fontSize(12).font("Helvetica-Bold")
-       .text("Total Estimate", 50, ey + 58, { width: 400, lineBreak: false });
+       .text(type === "invoice" ? "Total Invoice" : "Total Estimate", 50, ey + 58, { width: 400, lineBreak: false });
     doc.fontSize(12).font("Helvetica-Bold").fillColor("#000")
        .text(`${total || ""}`, 480, ey + 58, { width: 65, align: "right", lineBreak: false });
 

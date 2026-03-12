@@ -4,7 +4,7 @@ const router = express.Router();
 const JobSheet = require("../models/JobSheet");
 const upload = require("../middleware/upload");
 
-const generateInvoicePDF = require("../utils/generateInvoicePDF");
+const generatePDF = require("../utils/generatePDF");
 const sendEmail = require("../utils/sendEmail");
 
 const {
@@ -142,8 +142,7 @@ router.post("/send-invoice/:id", async (req, res) => {
         message: "Customer email not available"
       });
     }
-
-    const pdfBuffer = await generateInvoicePDF(job._id);
+const pdfBuffer = await generatePDF(job, "invoice");
 
     const total =
       Number(job.service?.serviceCharge || 0) +
