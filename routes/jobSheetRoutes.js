@@ -258,12 +258,11 @@ router.put("/:id/spares", async (req, res) => {
    NEXT JOB NUMBER
 ===================================================== */
 router.get("/next-number", async (req, res) => {
-
   try {
 
-    const lastJob = await JobSheet
-      .findOne()
-      .sort({ createdAt: -1 });
+    const lastJob = await JobSheet.findOne({
+      jobSheetNo: { $regex: /^JS-\d+$/ }
+    }).sort({ createdAt: -1 });
 
     if (!lastJob) {
       return res.json({ next: "JS-001" });
@@ -281,13 +280,8 @@ router.get("/next-number", async (req, res) => {
     res.json({ next: formatted });
 
   } catch (err) {
-
-    res.status(500).json({
-      message: err.message
-    });
-
+    res.status(500).json({ message: err.message });
   }
-
 });
 
 
