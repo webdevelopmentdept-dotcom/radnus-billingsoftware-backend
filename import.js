@@ -3,63 +3,67 @@ const mongoose = require("mongoose");
 const csv = require("csvtojson");
 const JobSheet = require("./models/JobSheet");
 
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch(err => console.log(err));
-
 async function importData() {
-  const data = await csv().fromFile("data.csv");
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("✅ MongoDB Connected");
 
-  const formatted = data.map((item, index) => ({
-    jobSheetNo: "JOB" + Date.now() + index,
+    const data = await csv().fromFile("data.csv");
 
-    customer: {
-      name: item.NAME || item.Name,
-      contact: String(item.NUMBER || item.Number),
-      altContact: "",
-      address: "",
-      email: "",
-    },
+    const formatted = data.map((item, index) => ({
+      jobSheetNo: "JS-" + String(23 + index).padStart(3, "0"),
 
-    device: {
-      make: item.BRAND || item.Brand,
-      model: item.MODEL || item.Model,
-      imei: "",
-      warranty: "",
-      pattern: "",
-      mobileStatus: "",
-    },
+      customer: {
+        name: item.NAME || item.Name,
+        contact: String(item.NUMBER || item.Number),
+        altContact: "",
+        address: "",
+        email: "",
+      },
 
-    service: {
-      engineer: "",
-      dealer: "",
-      drawer: "",
-      serviceCharge: 0,
-      spareCharge: 0,
-      estimate: "",
-      paymentMode: "",
-      repairDate: item.DATE ? new Date(item.DATE) : null,
-      deliveryDate: null,
-      remarks: item.PROBLEM || item.Problem || "",
-    },
+      device: {
+        make: item.BRAND || item.Brand,
+        model: item.MODEL || item.Model,
+        imei: "",
+        warranty: "",
+        pattern: "",
+        mobileStatus: "",
+      },
 
-    physicalCondition: [],
-    accessories: [],
-    visualIssues: [],
-    spareItems: [],
+      service: {
+        engineer: "",
+        dealer: "",
+        drawer: "",
+        serviceCharge: 0,
+        spareCharge: 0,
+        estimate: "",
+        paymentMode: "",
+        repairDate: item.DATE ? new Date(item.DATE) : null,
+        deliveryDate: null,
+        remarks: item.PROBLEM || item.Problem || "",
+      },
 
-    createdBy: {
-      username: "admin",
-      role: "admin"
-    },
+      physicalCondition: [],
+      accessories: [],
+      visualIssues: [],
+      spareItems: [],
 
-    isInvoiced: false
-  }));
+      createdBy: {
+        username: "admin",
+        role: "admin"
+      },
 
-  await JobSheet.insertMany(formatted);
+      isInvoiced: false
+    }));
 
-  console.log("✅ Data Imported Successfully");
-  mongoose.disconnect();
+    await JobSheet.insertMany(formatted);
+
+    console.log("✅ Data Imported Successfully");
+
+    mongoose.disconnect();
+  } catch (err) {
+    console.error("❌ IMPORT ERROR:", err);
+  }
 }
 
 importData();
