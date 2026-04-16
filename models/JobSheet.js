@@ -8,10 +8,10 @@ const SpareItemSchema = new mongoose.Schema({
 });
 
 const JobSheetSchema = new mongoose.Schema({
-jobSheetNo: {
-  type: String,
-  unique: true
-},
+  jobSheetNo: {
+    type: String,
+    unique: true
+  },
 
   customer: {
     name: String,
@@ -21,7 +21,7 @@ jobSheetNo: {
     email: String,
   },
 
-   device: {
+  device: {
     make: String,
     model: String,
     imei: String,
@@ -34,8 +34,11 @@ jobSheetNo: {
   accessories: [String],
   visualIssues: [String],
 
-   idProofType: String,
-  idProofImage: String,
+  idProofType: String,
+  idProofImage: {
+    url: String,
+    public_id: String
+  },
 
   service: {
     engineer: String,
@@ -50,7 +53,7 @@ jobSheetNo: {
     remarks: String,
   },
 
-    spareItems: [SpareItemSchema],
+  spareItems: [SpareItemSchema],
 
 
   // status: {
@@ -59,14 +62,14 @@ jobSheetNo: {
   // },
 
   createdBy: {
-  username: String,
-  role: String
-},
+    username: String,
+    role: String
+  },
 
-   isInvoiced: {
-  type: Boolean,
-  default: false
-}
+  isInvoiced: {
+    type: Boolean,
+    default: false
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model("JobSheet", JobSheetSchema);
