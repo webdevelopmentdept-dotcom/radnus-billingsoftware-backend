@@ -10,7 +10,8 @@ const sendEmail = require("../utils/sendEmail");
 const {
   sendEstimateEmail,
   updateJobSheet,
-  getJobSheetById
+  getJobSheetById,
+  getUserReport,
 } = require("../controllers/jobSheetController");
 
 
@@ -315,5 +316,6 @@ router.get("/:id", getJobSheetById);
 
 router.put("/:id", updateJobSheet);
 
+router.get("/user-report", getUserReport);
 
 module.exports = router;

@@ -314,3 +314,37 @@ Thank you for choosing Radnus Communication.
   }
 
 };
+
+exports.getUserReport = async (req, res) => {
+  try {
+    const { jobSheetNo } = req.query;
+
+    let query = {};
+
+    // 🔍 Optional search filter
+    if (jobSheetNo) {
+      query.jobSheetNo = { $regex: jobSheetNo, $options: "i" };
+    }
+
+    const jobs = await JobSheet.find(query).sort({ createdAt: -1 });
+
+    // ✅ GROUP BY createdBy.username
+    const grouped = {};
+
+    jobs.forEach((job) => {
+      const username = job.createdBy?.username || "Unknown";
+
+      if (!grouped[username]) {
+        grouped[username] = [];
+      }
+
+      grouped[username].push(job);
+    });
+
+    res.json(grouped);
+
+  } catch (err) {
+    console.error("USER REPORT ERROR:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
