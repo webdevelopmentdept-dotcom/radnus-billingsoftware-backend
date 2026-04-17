@@ -20,7 +20,7 @@ const {
    BEFORE ANY /:id ROUTES — otherwise Express will
    treat "filter", "next-number" etc. as an :id param
 ===================================================== */
-
+router.get("/user-report", getUserReport);
 
 /* =====================================================
    FILTER JOBSHEETS
@@ -316,6 +316,6 @@ router.get("/:id", getJobSheetById);
 
 router.put("/:id", updateJobSheet);
 
-router.get("/user-report", getUserReport);
+
 
 module.exports = router;
