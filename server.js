@@ -38,13 +38,7 @@ app.use(express.json());
 // ================= DB CONNECT =================
 connectDB();
 
-// ================= ADMIN USER =================
-// const ADMIN_USER = {
-//   username: "admin",
-//   passwordHash: "$2b$10$OMQCuC9lptEFQQebGAzgY.H9FlqkxqIQ7XK/E5j1SBlD8RMOdozty"
-// };
 
-// ================= TEST ROUTE =================
 app.get("/", (req, res) => {
   res.send("Backend API running 🚀");
 });

@@ -79,7 +79,7 @@ const generateInvoicePDF = (job) => {
     doc.fillColor(BRAND_ACCENT).font("Helvetica-Bold").fontSize(7.5)
        .text("PH :", ri, 22, { width: 22, lineBreak: false });
     doc.fillColor("#aab4cc").font("Helvetica").fontSize(7.5)
-       .text("81222 73355 / 99409 73030", ri + 24, 22, { width: 141 });
+       .text("81222 73355 / 99409 73030 /  98944 36987", ri + 24, 22, { width: 141 });
 
     doc.fillColor(BRAND_ACCENT).font("Helvetica-Bold").fontSize(7.5)
        .text("EM :", ri, 37, { width: 22, lineBreak: false });
@@ -150,8 +150,7 @@ const generateInvoicePDF = (job) => {
       { key: "model",   label: "MODEL",   x: ML + 70,  w: 100 },
       { key: "imei",    label: "IMEI",    x: ML + 170, w: 105 },
       { key: "fault",   label: "FAULT",   x: ML + 275, w: 130 },
-      { key: "service", label: "SERVICE", x: ML + 405, w: 65  },
-      { key: "spare",   label: "SPARE",   x: ML + 470, w: 45  },
+  { key: "total", label: "TOTAL", x: ML + 405, w: 110 },
     ];
 
     const headerH = 24;
@@ -206,8 +205,11 @@ const generateInvoicePDF = (job) => {
 
     // Charges with Tamil font for ₹
     doc.font(tamilFont).fontSize(9).fillColor(BRAND_ACCENT);
-    doc.text(`₹ ${service}`, cols[4].x + 5, ry, { width: cols[4].w - 8, align: "center", lineBreak: false });
-    doc.text(`₹ ${spare}`,   cols[5].x + 2, ry, { width: cols[5].w - 4, align: "center", lineBreak: false });
+   doc.text(`₹ ${total}`, cols[4].x + 5, ry, {
+  width: cols[4].w - 8,
+  align: "center",
+  lineBreak: false
+});
 
     /* ═══════════════════════════════════════════════════════════════════════
        TOTALS PANEL

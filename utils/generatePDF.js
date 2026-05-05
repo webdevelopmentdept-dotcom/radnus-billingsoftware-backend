@@ -36,12 +36,15 @@ const generatePDF = (job, type = "estimate") => {
        .fillColor("#000")
        .text("RADNUS COMMUNICATION", 40, 40);
 
-    doc.fontSize(9).font("Helvetica")
-       .text("242, Sinnaya Plaza, MG Road,", 40, 56)
-       .text("Puducherry - 605001",          40, 68)
-       .text("Phone: 81222 73355",           40, 80)
-       .text("Mon–Sat (10AM–7PM)",           40, 92)
-       .text("Website: www.radnus.in",       40, 104);
+   doc.fontSize(9).font("Helvetica")
+  .text("242, Sinnaya Plaza, MG Road,", 40, 56)
+  .text("Puducherry - 605001",          40, 68)
+  .text("Phone:",                       40, 80)
+  .text("81222 73355",                  95, 80)
+  .text("99409 73030",                  95, 92)
+  .text("98944 36987",                  95, 104)
+  .text("Mon–Sat (10AM–7PM)",           40, 118)
+  .text("Website: www.radnus.in",       40, 130);
 
     /* ─────────────────────────────────────────
        LOGO - CORRECTED POSITION
