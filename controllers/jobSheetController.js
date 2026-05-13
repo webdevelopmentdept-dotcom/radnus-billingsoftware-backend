@@ -21,6 +21,10 @@ exports.createJobSheet = async (req, res) => {
       idProofImage: req.file?.path || "",
 
       service: JSON.parse(req.body.service || "{}"),
+
+      // ✅ FIX 1 — spareItems create-ல் add பண்ணோம்
+      spareItems: JSON.parse(req.body.spareItems || "[]"),
+
       createdBy: JSON.parse(req.body.createdBy || "{}"),
     };
 
@@ -143,7 +147,13 @@ exports.updateJobSheet = async (req, res) => {
       visualIssues:
         typeof req.body.visualIssues === "string"
           ? JSON.parse(req.body.visualIssues)
-          : req.body.visualIssues
+          : req.body.visualIssues,
+
+      // ✅ FIX 2 — spareItems update-ல் parse பண்ணோம்
+      spareItems:
+        typeof req.body.spareItems === "string"
+          ? JSON.parse(req.body.spareItems)
+          : (req.body.spareItems || []),
 
     };
 
@@ -315,6 +325,8 @@ Thank you for choosing Radnus Communication.
 
 };
 
+
+/* ================= USER REPORT ================= */
 exports.getUserReport = async (req, res) => {
   try {
     const { jobSheetNo } = req.query;

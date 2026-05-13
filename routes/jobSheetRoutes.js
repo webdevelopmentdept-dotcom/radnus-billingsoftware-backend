@@ -87,29 +87,6 @@ router.get("/filter", async (req, res) => {
 /* =====================================================
    NEXT JOB NUMBER  ✅ MUST BE BEFORE /:id
 ===================================================== */
-// router.get("/next-number", async (req, res) => {
-//   try {
-
-//     // Find the HIGHEST plain-number jobSheetNo in DB
-//     const all = await JobSheet.find({
-//       jobSheetNo: { $regex: /^\d+$/ }
-//     }).select("jobSheetNo");
-
-//     if (!all || all.length === 0) {
-//       return res.json({ next: "JS-001" });
-//     }
-
-//     // MAX number, not last inserted
-//     const maxNo = Math.max(...all.map(j => parseInt(j.jobSheetNo)));
-//     return res.json({ next: String(maxNo + 1) });
-
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: err.message });
-//   }
-// });
-
-
 router.get("/next-number", async (req, res) => {
   try {
 
@@ -127,7 +104,6 @@ router.get("/next-number", async (req, res) => {
     const maxNumber = Math.max(...numbers);
     const nextNumber = maxNumber + 1;
 
-    // 🔥 format with leading zeros
     const formatted = `JS-${String(nextNumber).padStart(3, "0")}`;
 
     return res.json({ next: formatted });
@@ -137,6 +113,8 @@ router.get("/next-number", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+
 /* =====================================================
    CREATE NEW JOBSHEET  ✅ POST — no conflict with /:id
 ===================================================== */
@@ -166,17 +144,10 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
 
       createdBy: JSON.parse(req.body.createdBy || "{}"),
 
-      // idProofImage: req.file
-      //   ? {
-      //       data: req.file.buffer,
-      //       contentType: req.file.mimetype
-      //     }
-      //   : null
-
       idProofImage: req.file
         ? {
-          url: req.file.path,        // ✅ Cloudinary URL
-          public_id: req.file.filename // ✅ for delete/update later
+          url: req.file.path,
+          public_id: req.file.filename
         }
         : null
 
@@ -342,7 +313,8 @@ router.put("/:id/spares", async (req, res) => {
 ===================================================== */
 router.get("/:id", getJobSheetById);
 
-router.put("/:id", updateJobSheet);
+// ✅ FIX — upload middleware சேர்க்கப்பட்டது, இல்லாம FormData parse ஆகாது
+router.put("/:id", upload.single("idProofImage"), updateJobSheet);
 
 
 
