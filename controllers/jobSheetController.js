@@ -1,3 +1,4 @@
+
 const generatePDF = require("../utils/generatePDF");
 const sendEmail = require("../utils/sendEmail");
 const JobSheet = require("../models/JobSheet");
@@ -118,12 +119,26 @@ exports.updateJobSheet = async (req, res) => {
     const accessories        = typeof req.body.accessories === "string"      ? JSON.parse(req.body.accessories)      : (req.body.accessories       || []);
     const visualIssues       = typeof req.body.visualIssues === "string"     ? JSON.parse(req.body.visualIssues)     : (req.body.visualIssues      || []);
     const spareItems         = typeof req.body.spareItems === "string"       ? JSON.parse(req.body.spareItems)       : (req.body.spareItems        || []);
-    const advanceItems = typeof req.body.advanceItems === "string"
+const advanceItems = typeof req.body.advanceItems === "string"
   ? JSON.parse(req.body.advanceItems)
   : (req.body.advanceItems || []);
+// ✅ NEW — delta calculation for date-wise revenue ledger (spare & others EXCLUDE — avanga own date items vachi track aagum)
+   const oldService = job.service || {};
+   const deltaService = Math.max(0, Number(serviceData.serviceCharge || 0) - Number(oldService.serviceCharge || 0));
+   const deltaIncome  = Math.max(0, Number(serviceData.income        || 0) - Number(oldService.income        || 0));
 
-    // ✅ Rebill snapshot
-    let rebillSnapshot = null;
+   const newRevenueEntries = [...(oldService.revenueEntries || [])];
+   if (deltaService > 0 || deltaIncome > 0) {
+     newRevenueEntries.push({
+       date: new Date(),
+       service: deltaService,
+       spare:   0,
+       income:  deltaIncome,
+       others:  0,
+     });
+   }
+
+   let rebillSnapshot = null;
     if (job.rebillPending) {
       rebillSnapshot = {
         rebilledAt:    new Date(),
@@ -147,7 +162,7 @@ exports.updateJobSheet = async (req, res) => {
       spareItems,
 
       // ✅ KEY FIX: service முழுசா explicit build
-     service: {
+    service: {
   engineer:       serviceData.engineer       || "",
   softwareEngineer: serviceData.softwareEngineer || "",
   dealer:         serviceData.dealer         || "",
@@ -155,7 +170,9 @@ exports.updateJobSheet = async (req, res) => {
   serviceRep:     serviceData.serviceRep     || "",
   serviceCharge:  Number(serviceData.serviceCharge  || 0),
   spareCharge:    Number(serviceData.spareCharge    || 0),
-  estimate:       serviceData.estimate       || "",
+  income:         Number(serviceData.income  || 0),          // ✅ NEW
+  othersAmount:   Number(serviceData.othersAmount || 0),      // ✅ NEW
+  othersItems:    serviceData.othersItems || [],              // ✅ NEW
   paymentMode:    serviceData.paymentMode    || "",
   repairDate:     serviceData.repairDate     || null,
   deliveryDate:   serviceData.deliveryDate   || null,
@@ -165,6 +182,7 @@ exports.updateJobSheet = async (req, res) => {
   instaFollowers: serviceData.instaFollowers || "",
   googleReview:   serviceData.googleReview   || "",
   remarks:        serviceData.remarks        || "",
+   revenueEntries: newRevenueEntries,   // ✅ NEW
 },
     };
 

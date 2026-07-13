@@ -1,3 +1,7 @@
+
+
+
+
 const express = require("express");
 const router  = express.Router();
 
@@ -206,15 +210,25 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
         });
       }
     }
-
-    const newJob = new JobSheet({
-      jobSheetNo:        req.body.jobSheetNo,
-      customer:          JSON.parse(req.body.customer   || "{}"),
-      device:            { ...JSON.parse(req.body.device || "{}"), idProofType: req.body.idProofType },
-service: {
-  ...serviceData,
-  advanceItems: JSON.parse(req.body.advanceItems || "[]"),
-},
+const initialEntry = {
+  date: new Date(),
+  service: Number(serviceData.serviceCharge || 0),
+  spare:   0,   // ✅ spare EXCLUDE — spareItems date vachi track aagum
+  income:  Number(serviceData.income        || 0),
+  others:  0,   // ✅ others EXCLUDE — othersItems date vachi track aagum
+};
+const newJob = new JobSheet({
+  jobSheetNo:        req.body.jobSheetNo,
+  customer:          JSON.parse(req.body.customer   || "{}"),
+  device:            { ...JSON.parse(req.body.device || "{}"), idProofType: req.body.idProofType },
+  service: {
+    ...serviceData,
+    repairDate:   serviceData.repairDate   || null,
+    deliveryDate: serviceData.deliveryDate || null,
+    advanceItems: JSON.parse(req.body.advanceItems || "[]"),
+    revenueEntries: (initialEntry.service || initialEntry.spare || initialEntry.income || initialEntry.others)
+      ? [initialEntry] : [],   // ✅ NEW
+  },
       physicalCondition: JSON.parse(req.body.physicalCondition || "[]"),
       accessories:       JSON.parse(req.body.accessories       || "[]"),
       visualIssues:      JSON.parse(req.body.visualIssues      || "[]"),

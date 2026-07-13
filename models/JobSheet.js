@@ -4,13 +4,19 @@ const SpareItemSchema = new mongoose.Schema({
   name: String,
   qty: Number,
   rate: Number,
-  amount: Number
+  amount: Number,
+  date: { type: Date, default: Date.now }   // ✅ NEW
 });
 // இதை ADD பண்ணு:
 const AdvanceItemSchema = new mongoose.Schema({
   label:  { type: String, default: "" },  // ✅
   amount: { type: Number, default: 0 },
   date:   { type: Date }
+});
+const OthersItemSchema = new mongoose.Schema({
+  category: String,
+  amount:   Number,
+  date:     Date
 });
 const StatusLogSchema = new mongoose.Schema({
   status:    String,
@@ -67,15 +73,30 @@ const JobSheetSchema = new mongoose.Schema({
 service: {
     engineer: String, dealer: String, drawer: String,
      
-    serviceCharge: Number, spareCharge: Number,
-    estimate: String, paymentMode: String,
-    repairDate: Date, deliveryDate: Date, 
+    serviceCharge:{ type: Number, default: 0 }, spareCharge: { type: Number, default: 0 },
+     income: { type: Number, default: 0 }, 
+     othersAmount: { type: Number, default: 0 },        
+    othersItems:  { type: [OthersItemSchema], default: [] },
+
+    // ✅ NEW — date-wise revenue ledger
+    revenueEntries: {
+      type: [{
+        date:    { type: Date, default: Date.now },
+        service: { type: Number, default: 0 },
+        spare:   { type: Number, default: 0 },
+        income:  { type: Number, default: 0 },
+        others:  { type: Number, default: 0 },
+      }],
+      default: []
+    },
+
+    repairDate: Date, deliveryDate: Date,
     remarks: String,
     advanceAmount: { type: Number, default: 0 },
    advanceItems: { type: [AdvanceItemSchema], default: [] },
 
     margin:        { type: Number, default: 0 },
-    serviceRep:    { type: String, default: "" },   // ✅ NEW
+    serviceRep:    { type: String, default: "" },   
 
 instaFollowers: { type: String, default: "" },   
 googleReview:   { type: String, default: "" },   
