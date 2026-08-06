@@ -67,7 +67,7 @@ const JobSheetSchema = new mongoose.Schema({
   physicalCondition: [String],
   accessories:       [String],
   visualIssues:      [String],
-
+// code
   idProofType:  String,
   idProofImage: { url: String, public_id: String },
 service: {
