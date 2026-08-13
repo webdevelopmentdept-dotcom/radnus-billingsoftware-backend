@@ -17,9 +17,8 @@ const generateInvoicePDF = (job) => {
     doc.on("data", buffers.push.bind(buffers));
     doc.on("end", () => resolve(Buffer.concat(buffers)));
 
-    const service = Number(job.service?.serviceCharge || 0);
-    const spare = Number(job.service?.spareCharge || 0);
-    const total = service + spare;
+    // ── ONLY Income field is used for invoice totals (spare charges excluded) ──
+    const total = Number(job.service?.income || 0);
 
     const paymentLabel =
       job.service?.paymentMode === "Cash" ? "CASH MEMO" :
