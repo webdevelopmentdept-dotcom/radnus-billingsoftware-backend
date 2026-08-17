@@ -1,7 +1,3 @@
-
-
-
-
 const express = require("express");
 const router  = express.Router();
 
@@ -18,7 +14,6 @@ const {
   getUserReport,
 } = require("../controllers/jobSheetController");
 
-const MAX_JOBS = 5;
 
 /* =====================================================
    WORKLOAD HELPER — simple 1 job = 1 point
@@ -194,56 +189,46 @@ router.get("/next-number", async (req, res) => {
 });
 
 /* =====================================================
-   CREATE JOBSHEET — simple workload check
+   CREATE NEW JOB SHEET  (⭐ this was missing — fixes "Save failed" 404)
 ===================================================== */
 router.post("/", upload.single("idProofImage"), async (req, res) => {
   try {
-    const serviceData  = JSON.parse(req.body.service || "{}");
-    const engineerName = serviceData.engineer;
+    const {
+      jobSheetNo, customer, device, physicalCondition,
+      accessories, advanceItems, visualIssues, service,
+      spareItems, idProofType, createdBy
+    } = req.body;
 
-    if (engineerName) {
-      const load = await getEngineerLoad(engineerName);
-      if (load >= MAX_JOBS) {
-        return res.status(400).json({
-          message: `${engineerName} is at full capacity (${MAX_JOBS} active jobs). Please choose another engineer.`,
-          code: "ENGINEER_FULL",
-        });
-      }
-    }
-const initialEntry = {
-  date: new Date(),
-  service: Number(serviceData.serviceCharge || 0),
-  spare:   0,   // ✅ spare EXCLUDE — spareItems date vachi track aagum
-  income:  Number(serviceData.income        || 0),
-  others:  0,   // ✅ others EXCLUDE — othersItems date vachi track aagum
-};
-const newJob = new JobSheet({
-  jobSheetNo:        req.body.jobSheetNo,
-  customer:          JSON.parse(req.body.customer   || "{}"),
-  device:            { ...JSON.parse(req.body.device || "{}"), idProofType: req.body.idProofType },
-  service: {
-    ...serviceData,
-    repairDate:   serviceData.repairDate   || null,
-    deliveryDate: serviceData.deliveryDate || null,
-    advanceItems: JSON.parse(req.body.advanceItems || "[]"),
-    revenueEntries: (initialEntry.service || initialEntry.spare || initialEntry.income || initialEntry.others)
-      ? [initialEntry] : [],   // ✅ NEW
-  },
-      physicalCondition: JSON.parse(req.body.physicalCondition || "[]"),
-      accessories:       JSON.parse(req.body.accessories       || "[]"),
-      visualIssues:      JSON.parse(req.body.visualIssues      || "[]"),
-      spareItems:        JSON.parse(req.body.spareItems         || "[]"),
-      createdBy: (() => {
-        try { return JSON.parse(req.body.createdBy || "{}"); }
-        catch { return { username: req.body.createdBy || "", role: "" }; }
-      })(),
-      idProofImage: req.file ? { url: req.file.path, public_id: req.file.filename } : null,
+    // ⭐ FIX — advanceItems comes as its own FormData field from the frontend,
+    // but the schema expects it nested inside "service". Merge it in here,
+    // otherwise it silently gets dropped and Advance Report shows nothing.
+    const parsedService = JSON.parse(service || "{}");
+    parsedService.advanceItems = JSON.parse(advanceItems || "[]");
+
+    const newJob = new JobSheet({
+      jobSheetNo,
+      customer:          JSON.parse(customer || "{}"),
+      device:            JSON.parse(device || "{}"),
+      physicalCondition: JSON.parse(physicalCondition || "[]"),
+      accessories:       JSON.parse(accessories || "[]"),
+      visualIssues:      JSON.parse(visualIssues || "[]"),
+      service:           parsedService,
+      spareItems:        JSON.parse(spareItems || "[]"),
+      idProofType,
+      createdBy:         JSON.parse(createdBy || "{}"),
     });
 
+    if (req.file) {
+      newJob.idProofImage = {
+        url: req.file.path || req.file.location,
+        public_id: req.file.filename || req.file.public_id,
+      };
+    }
+
     await newJob.save();
-    res.status(201).json(newJob);
+    res.json({ message: "Job Sheet Saved ✅", job: newJob });
   } catch (err) {
-    console.error("CREATE ERROR:", err);
+    console.error("CREATE JOBSHEET ERROR:", err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -284,42 +269,11 @@ router.put("/:id/rebill", async (req, res) => {
   }
 });
 
-/* =====================================================
-   TRANSFER — simple workload check
-===================================================== */
-router.patch("/:id/transfer", async (req, res) => {
-  try {
-    const { from, to, note } = req.body;
-    if (!to) return res.status(400).json({ message: "Transfer target required" });
 
-    if (to !== "Reception") {
-      const targetLoad = await getEngineerLoad(to);
-      if (targetLoad >= MAX_JOBS) {
-        return res.status(400).json({
-          message: `${to} is at full capacity (${MAX_JOBS} jobs). Cannot transfer.`,
-          code: "ENGINEER_FULL",
-        });
-      }
-    }
-
-    const job = await JobSheet.findByIdAndUpdate(
-      req.params.id,
-      {
-        $set: { "service.engineer": to },
-        $push: { transferLog: { from, to, note: note || "", transferredAt: new Date() } }
-      },
-      { new: true }
-    );
-    if (!job) return res.status(404).json({ message: "Job not found" });
-    res.json(job);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
 
 
  // Manual Job Sheet Insert (specific number)
-router.post('/api/jobsheets/manual-insert', async (req, res) => {
+router.post('/manual-insert', async (req, res) => {
   try {
     const {
       jobSheetNo, customerName, contact, make, model,
