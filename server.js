@@ -80,7 +80,8 @@ app.use("/api/makes",      makeRoutes);
 app.use("/api/physical-conditions", require("./routes/physicalConditionRoutes"));
 app.use("/api/accessories",         require("./routes/accessoryRoutes"));
 // ================= TEST EMAIL =================
-app.use("/api/spares", require("./routes/spareRoutes"));
+
+app.use("/api/spares", require("./routes/Spareroutes"));
 app.get("/test-email", async (req, res) => {
   try {
     await sendEmail(
