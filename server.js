@@ -12,6 +12,13 @@ const makeRoutes = require("./routes/makeRoutes");
 
 const app = express();
 
+// ✅ NEW — stops Express's default ETag-based conditional caching. Without this, browsers
+// were getting 304 "Not Modified" responses for /api/faults, /api/makes, /api/models,
+// /api/drawers, etc. and reusing a STALE cached list — so newly added Make/Model/Fault/Drawer
+// (from the sidebar popups OR the Job Sheet inline "Add New") never showed up until a hard
+// refresh. Disabling etag globally forces every GET to always return fresh data.
+app.disable("etag");
+
 // ================= MIDDLEWARE =================
 app.use(cors({
   origin: [
