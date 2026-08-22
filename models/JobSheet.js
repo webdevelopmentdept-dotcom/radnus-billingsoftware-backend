@@ -75,8 +75,8 @@ service: {
      
     serviceCharge:{ type: Number, default: 0 }, spareCharge: { type: Number, default: 0 },
      income: { type: Number, default: 0 }, 
-     othersAmount: { type: Number, default: 0 },        
-    othersItems:  { type: [OthersItemSchema], default: [] },
+     incomeDate: { type: Date, default: null },   // ✅ FIX — missing field caused strict-mode drop
+     othersAmount: { type: Number, default: 0 },
 
     // ✅ NEW — date-wise revenue ledger
     revenueEntries: {

@@ -1,4 +1,3 @@
-
 const generatePDF = require("../utils/generatePDF");
 const sendEmail = require("../utils/sendEmail");
 const JobSheet = require("../models/JobSheet");
@@ -123,20 +122,39 @@ const advanceItems = typeof req.body.advanceItems === "string"
   ? JSON.parse(req.body.advanceItems)
   : (req.body.advanceItems || []);
 // ✅ NEW — delta calculation for date-wise revenue ledger (spare & others EXCLUDE — avanga own date items vachi track aagum)
-   const oldService = job.service || {};
-   const deltaService = Math.max(0, Number(serviceData.serviceCharge || 0) - Number(oldService.serviceCharge || 0));
-   const deltaIncome  = Math.max(0, Number(serviceData.income        || 0) - Number(oldService.income        || 0));
+const oldService = job.service || {};
 
-   const newRevenueEntries = [...(oldService.revenueEntries || [])];
-   if (deltaService > 0 || deltaIncome > 0) {
-     newRevenueEntries.push({
-       date: new Date(),
-       service: deltaService,
-       spare:   0,
-       income:  deltaIncome,
-       others:  0,
-     });
-   }
+const deltaService = Math.max(
+  0,
+  Number(serviceData.serviceCharge || 0) -
+  Number(oldService.serviceCharge || 0)
+);
+
+const deltaIncome = Math.max(
+  0,
+  Number(serviceData.income || 0) -
+  Number(oldService.income || 0)
+);
+
+const newRevenueEntries = [
+  ...(oldService.revenueEntries || [])
+];
+
+// ✅ Use manually selected Income Date
+// instead of always using today's date.
+const revenueDate = serviceData.incomeDate
+  ? new Date(`${serviceData.incomeDate}T00:00:00`)
+  : new Date();
+
+if (deltaService > 0 || deltaIncome > 0) {
+  newRevenueEntries.push({
+    date: revenueDate,
+    service: deltaService,
+    spare: 0,
+    income: deltaIncome,
+    others: 0,
+  });
+}
 
    let rebillSnapshot = null;
     if (job.rebillPending) {
@@ -160,8 +178,6 @@ const advanceItems = typeof req.body.advanceItems === "string"
       accessories,
       visualIssues,
       spareItems,
-
-      // ✅ KEY FIX: service முழுசா explicit build
     service: {
   engineer:       serviceData.engineer       || "",
   softwareEngineer: serviceData.softwareEngineer || "",
@@ -171,6 +187,7 @@ const advanceItems = typeof req.body.advanceItems === "string"
   serviceCharge:  Number(serviceData.serviceCharge  || 0),
   spareCharge:    Number(serviceData.spareCharge    || 0),
   income:         Number(serviceData.income  || 0),          // ✅ NEW
+  incomeDate:     serviceData.incomeDate     || null,         // ✅ FIX — was missing, defaulted to today
   othersAmount:   Number(serviceData.othersAmount || 0),      // ✅ NEW
   othersItems:    serviceData.othersItems || [],              // ✅ NEW
   paymentMode:    serviceData.paymentMode    || "",
@@ -216,80 +233,6 @@ const advanceItems = typeof req.body.advanceItems === "string"
 
 
 /* ================= SEND ESTIMATE EMAIL ================= */
-// exports.sendEstimateEmail = async (req, res) => {
-
-//   try {
-
-//     console.log("STEP 1 - API HIT");
-
-//     const job = await JobSheet.findById(req.params.id);
-
-//     console.log("STEP 2 - JOB FETCHED");
-
-//     if (!job) {
-//       return res.status(404).json({
-//         message: "Job not found"
-//       });
-//     }
-
-//     if (!job.customer?.email) {
-//       return res.status(400).json({
-//         message: "Customer email not available"
-//       });
-//     }
-
-//     console.log("STEP 3 - GENERATING PDF");
-//     console.log("Generating PDF for:", job._id);
-
-//     const pdfBuffer = await generatePDF(job._id);
-
-//     if (!pdfBuffer) {
-//       return res.status(500).json({
-//         message: "PDF generation failed"
-//       });
-//     }
-
-//     console.log("STEP 4 - PDF GENERATED");
-
-//     const subject = `Estimate - ${job.jobSheetNo}`;
-
-//     const text = `
-// Dear ${job.customer.name},
-
-// Please find your estimate attached.
-
-// Thank you,
-// RADNUS COMMUNICATION
-// `;
-
-//     console.log("STEP 5 - SENDING EMAIL");
-
-//     await sendEmail(
-//       job.customer.email,
-//       subject,
-//       text,
-//       pdfBuffer,
-//       `Estimate-${job.jobSheetNo}.pdf`
-//     );
-
-//     console.log("STEP 6 - EMAIL SENT");
-
-//     res.json({
-//       message: "Estimate sent with PDF ✅"
-//     });
-
-//   } catch (err) {
-
-//     console.error("ERROR OCCURRED:", err);
-
-//     res.status(500).json({
-//       message: err.message
-//     });
-
-//   }
-
-// };
-
 exports.sendEstimateEmail = async (req, res) => {
 
   try {
@@ -356,7 +299,11 @@ Thank you for choosing Radnus Communication.
 };
 
 
-/* ================= USER REPORT ================= */
+/* ================= USER REPORT (grouped by Service Rep) ================= */
+// ✅ FIX — munnadi "createdBy.username" vachi group pannichu, so logged-in
+// user vera "serviceRep" field vera irundha data varala (e.g. Kalaivani
+// login pannalum service.serviceRep = "Kalai" nu irundha match aagala).
+// Ippo Salesrep Report maadhiri "service.serviceRep" vachi thaan group pannum.
 exports.getUserReport = async (req, res) => {
   try {
     const { jobSheetNo, fromDate, toDate } = req.query;
@@ -366,7 +313,7 @@ exports.getUserReport = async (req, res) => {
     if (jobSheetNo && jobSheetNo.trim()) {
       const q = jobSheetNo.trim();
       query.$or = [
-        { "createdBy.username": { $regex: q, $options: "i" } },
+        { "service.serviceRep": { $regex: q, $options: "i" } },
         { jobSheetNo:           { $regex: q, $options: "i" } },
       ];
     }
@@ -389,12 +336,9 @@ exports.getUserReport = async (req, res) => {
 
     const grouped = {};
     for (const job of jobs) {
-      const createdBy = job.createdBy;
-      const username = typeof createdBy === "object"
-        ? (createdBy?.username || "Unknown")
-        : (createdBy || "Unknown");
-      if (!grouped[username]) grouped[username] = [];
-      grouped[username].push(job);
+      const rep = job.service?.serviceRep?.trim() || "Unassigned";
+      if (!grouped[rep]) grouped[rep] = [];
+      grouped[rep].push(job);
     }
 
     res.json(grouped);
