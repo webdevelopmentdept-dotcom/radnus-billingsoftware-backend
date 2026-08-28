@@ -56,7 +56,8 @@ const JobSheetSchema = new mongoose.Schema({
 
   customer: {
     name: String, contact: String, altContact: String,
-    address: String, email: String,
+    address: String, email: String,  district: String,   
+  taluk: String,
   },
 
   device: {

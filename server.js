@@ -9,6 +9,9 @@ const sendEmail = require("./utils/sendEmail");
 
 const connectDB = require("./config/db");
 const makeRoutes = require("./routes/makeRoutes");
+const districtRoutes = require("./routes/districtRoutes");
+const talukRoutes = require("./routes/talukRoutes");
+
 
 const app = express();
 
@@ -86,7 +89,8 @@ app.use("/api/dashboard",  require("./routes/dashboardRoutes"));
 app.use("/api/makes",      makeRoutes);
 app.use("/api/physical-conditions", require("./routes/physicalConditionRoutes"));
 app.use("/api/accessories",         require("./routes/accessoryRoutes"));
-
+app.use("/api/districts", districtRoutes);
+app.use("/api/taluks", talukRoutes);
 // ================= TEST EMAIL =================
 
 app.use("/api/spares", require("./routes/Spareroutes"));

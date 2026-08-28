@@ -6,6 +6,7 @@ const upload   = require("../middleware/upload");
 
 const generateInvoicePDF = require("../utils/generateInvoicePDF");
 const sendEmail          = require("../utils/sendEmail");
+const { sendJobStatusWhatsApp } = require("../utils/sendWhatsApp"); // ✅ WhatsApp
 
 const {
   sendEstimateEmail,
@@ -106,31 +107,30 @@ router.get("/filter", async (req, res) => {
     const { status, fromDate, toDate, q, engineer, dealer } = req.query;
     let query = {};
 
-// இதா போடு:
-if (q) {
-  const trimmed = q.trim();
+    if (q) {
+      const trimmed = q.trim();
 
-  // Job Sheet No — exact match (234 → JS-234, or JS-234 directly)
-  const isJobNo = /^\d{1,4}$/.test(trimmed) || /^JS-\d+$/i.test(trimmed);
-  if (isJobNo) {
-    const normalized = /^JS-/i.test(trimmed)
-      ? trimmed.toUpperCase()
-      : `JS-${trimmed.padStart(3, "0")}`;
-    query.jobSheetNo = normalized;
-  }
-  // IMEI — exact 15 digit match
-  else if (/^\d{15}$/.test(trimmed)) {
-    query["device.imei"] = trimmed;
-  }
-  // Contact — exact 10 digit match
-  else if (/^\d{10}$/.test(trimmed)) {
-    query["customer.contact"] = trimmed;
-  }
-  // Name — partial match
-  else {
-    query["customer.name"] = { $regex: trimmed, $options: "i" };
-  }
-}
+      // Job Sheet No — exact match (234 → JS-234, or JS-234 directly)
+      const isJobNo = /^\d{1,4}$/.test(trimmed) || /^JS-\d+$/i.test(trimmed);
+      if (isJobNo) {
+        const normalized = /^JS-/i.test(trimmed)
+          ? trimmed.toUpperCase()
+          : `JS-${trimmed.padStart(3, "0")}`;
+        query.jobSheetNo = normalized;
+      }
+      // IMEI — exact 15 digit match
+      else if (/^\d{15}$/.test(trimmed)) {
+        query["device.imei"] = trimmed;
+      }
+      // Contact — exact 10 digit match
+      else if (/^\d{10}$/.test(trimmed)) {
+        query["customer.contact"] = trimmed;
+      }
+      // Name — partial match
+      else {
+        query["customer.name"] = { $regex: trimmed, $options: "i" };
+      }
+    }
     if (status) query["device.mobileStatus"] = status;
     if (dealer) query["service.dealer"] = { $regex: dealer, $options: "i" };
 
@@ -189,7 +189,10 @@ router.get("/next-number", async (req, res) => {
 });
 
 /* =====================================================
-   CREATE NEW JOB SHEET  (⭐ this was missing — fixes "Save failed" 404)
+   CREATE NEW JOB SHEET
+   (⭐ this is the ONLY create implementation — controller's createJobSheet
+   was dead code, never wired to a route, and has been removed to avoid
+   confusion/duplicate edits going forward.)
 ===================================================== */
 router.post("/", upload.single("idProofImage"), async (req, res) => {
   try {
@@ -199,9 +202,9 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
       spareItems, idProofType, createdBy
     } = req.body;
 
-    // ⭐ FIX — advanceItems comes as its own FormData field from the frontend,
-    // but the schema expects it nested inside "service". Merge it in here,
-    // otherwise it silently gets dropped and Advance Report shows nothing.
+    // advanceItems comes as its own FormData field from the frontend, but the
+    // schema expects it nested inside "service". Merge it in here, otherwise it
+    // silently gets dropped and Advance Report shows nothing.
     const parsedService = JSON.parse(service || "{}");
     parsedService.advanceItems = JSON.parse(advanceItems || "[]");
 
@@ -226,9 +229,63 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
     }
 
     await newJob.save();
+
+    // ✅ WhatsApp status message on initial save (e.g. Device Status = "Received").
+    // Fire-and-forget: doesn't block the response, doesn't fail the save if WhatsApp errors.
+    if (newJob.customer?.contact && newJob.device?.mobileStatus) {
+      sendJobStatusWhatsApp(
+        newJob.customer.contact,
+        newJob.customer.name,
+        newJob.jobSheetNo,
+        newJob.device.mobileStatus
+      );
+    }
+
     res.json({ message: "Job Sheet Saved ✅", job: newJob });
   } catch (err) {
     console.error("CREATE JOBSHEET ERROR:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+/* =====================================================
+   MANUAL SEND WHATSAPP — triggered by the "Send WhatsApp" button on the
+   Job Sheet page. Re-sends the message for whatever Device Status the job
+   currently has, regardless of whether the status actually changed (unlike
+   the automatic triggers elsewhere in this file, which only fire on change).
+   Useful when the first automatic send failed (e.g. WHATSAPP_TOKEN was down)
+   or the shop just wants to manually remind a customer.
+===================================================== */
+router.post("/:id/send-whatsapp", async (req, res) => {
+  try {
+    const job = await JobSheet.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    if (!job.customer?.contact) {
+      return res.status(400).json({ message: "Customer contact number not available" });
+    }
+
+    const status = job.device?.mobileStatus;
+    if (!status) {
+      return res.status(400).json({ message: "Device Status not set on this job sheet" });
+    }
+
+    const sent = await sendJobStatusWhatsApp(
+      job.customer.contact,
+      job.customer.name,
+      job.jobSheetNo,
+      status
+    );
+
+    if (sent) {
+      res.json({ message: `WhatsApp sent ✅ (status: ${status})` });
+    } else {
+      // sendJobStatusWhatsApp returns false for unmapped statuses (e.g. "Cancelled")
+      // or invalid contact numbers — not a server error, just nothing to send.
+      res.status(400).json({ message: `No WhatsApp message is configured for status "${status}", or the contact number is invalid` });
+    }
+  } catch (err) {
+    console.error("SEND WHATSAPP ERROR:", err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -262,6 +319,18 @@ router.put("/:id/rebill", async (req, res) => {
     });
 
     const updated = await JobSheet.findById(req.params.id);
+
+    // ✅ rebill resets status back to "Received", customer should know their
+    // device is back in the shop for another round of repair.
+    if (updated.customer?.contact) {
+      sendJobStatusWhatsApp(
+        updated.customer.contact,
+        updated.customer.name,
+        updated.jobSheetNo,
+        "Received"
+      );
+    }
+
     res.json(updated);
   } catch (err) {
     console.error("REBILL ERROR:", err);
@@ -269,10 +338,13 @@ router.put("/:id/rebill", async (req, res) => {
   }
 });
 
-
-
-
- // Manual Job Sheet Insert (specific number)
+/* =====================================================
+   MANUAL JOB SHEET INSERT (specific number)
+   NOTE: no WhatsApp trigger here on purpose — this is for backfilling old/manual
+   jobs, not new intake, so customers shouldn't get a notification for it. If you
+   want customers notified here too, add a sendJobStatusWhatsApp() call after save,
+   same pattern as the routes above.
+===================================================== */
 router.post('/manual-insert', async (req, res) => {
   try {
     const {
@@ -312,6 +384,7 @@ router.post('/manual-insert', async (req, res) => {
     res.status(500).json({ message: 'Insert failed', error: err.message });
   }
 });
+
 /* =====================================================
    STATUS UPDATE
 ===================================================== */
@@ -323,6 +396,18 @@ router.patch("/:id/status", async (req, res) => {
       { "device.mobileStatus": status, $push: { statusLogs: { status, updatedBy, timestamp: new Date() } } },
       { new: true }
     );
+
+    // ✅ this endpoint changes Device Status directly (separate from the full
+    // Update flow), so it needs its own WhatsApp trigger too.
+    if (job?.customer?.contact && status) {
+      sendJobStatusWhatsApp(
+        job.customer.contact,
+        job.customer.name,
+        job.jobSheetNo,
+        status
+      );
+    }
+
     res.json(job);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -365,6 +450,50 @@ router.delete("/:id/steps/:stepId", async (req, res) => {
     );
     res.json(job);
   } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+/* =====================================================
+   SEND WHATSAPP (MANUAL) — ✅ NEW
+   Lets the shop manually re-send the current Device Status message to the
+   customer (e.g. customer says they missed the auto-sent message). Always
+   sends whatever status is currently SAVED in the DB — not any unsaved
+   edit in the open form — so the frontend should prompt "Update" first if
+   there are unsaved changes.
+===================================================== */
+router.post("/:id/send-whatsapp", async (req, res) => {
+  try {
+    const job = await JobSheet.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    if (!job.customer?.contact) {
+      return res.status(400).json({ message: "No contact number on this job sheet" });
+    }
+
+    const status = job.device?.mobileStatus;
+    if (!status) {
+      return res.status(400).json({ message: "No Device Status set on this job sheet" });
+    }
+
+    const sent = await sendJobStatusWhatsApp(
+      job.customer.contact,
+      job.customer.name,
+      job.jobSheetNo,
+      status
+    );
+
+    if (sent) {
+      res.json({ message: `WhatsApp message sent for status "${status}" ✅` });
+    } else {
+      // sendJobStatusWhatsApp returns false for: unmapped status (e.g. "Cancelled"),
+      // invalid 10-digit contact, or a Meta API failure (already logged server-side).
+      res.status(400).json({
+        message: `Could not send WhatsApp message — check the contact number is valid and "${status}" has a mapped message.`
+      });
+    }
+  } catch (err) {
+    console.error("SEND WHATSAPP (MANUAL) ERROR:", err);
+    res.status(500).json({ message: err.message });
+  }
 });
 
 /* =====================================================
@@ -450,6 +579,19 @@ router.put("/:id/invoice", async (req, res) => {
       },
       { new: true }
     );
+
+    // ✅ Invoice button moves status to "Delivered" (or leaves "Delivered NR/NA"),
+    // which the customer should be notified about. "Delivered NR/NA" isn't in the
+    // STATUS_MESSAGES map, so sendJobStatusWhatsApp silently skips it — only a genuine
+    // "Delivered" triggers a message here.
+    if (updated?.customer?.contact) {
+      sendJobStatusWhatsApp(
+        updated.customer.contact,
+        updated.customer.name,
+        updated.jobSheetNo,
+        finalStatus
+      );
+    }
 
     res.json(updated);
   } catch (err) {
@@ -571,6 +713,8 @@ router.put("/:id/cancel", async (req, res) => {
       { new: true }
     );
 
+
+
     res.json(updated);
   } catch (err) {
     console.error("CANCEL ERROR:", err);
@@ -578,7 +722,7 @@ router.put("/:id/cancel", async (req, res) => {
   }
 });
 
-// ✅ Dynamic :id routes — எப்பவும் கீழே இருக்கணும்
+
 router.get("/:id", getJobSheetById);
 
 router.put("/:id", upload.single("idProofImage"), updateJobSheet);
