@@ -69,9 +69,15 @@ const generatePDF = (job, type = "estimate") => {
       return s.slice(0, 10);
     };
 
+    // ================= FIX =================
+    // 🔴 BUG FIX: "Created" was using fmtDate(new Date()) — the moment the PDF
+    // is generated (every download/email re-stamps a new date), not the date
+    // the job sheet was actually created/saved. Now uses job.createdAt so it
+    // matches the same "Created" date shown on the Estimate page and stays
+    // fixed regardless of when the PDF is (re)generated.
     const jobRows = [
       ["Job No",   job.jobSheetNo              || ""],
-      ["Created",  fmtDate(new Date())],
+      ["Created",  fmtDate(job.createdAt)],
       ["Delivery", fmtDate(job.service?.deliveryDate)],
       ["Engineer", job.service?.engineer        || ""],
     ];

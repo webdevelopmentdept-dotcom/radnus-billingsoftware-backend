@@ -19,20 +19,27 @@ router.post("/", async (req, res) => {
 
     // fast-path check (case-insensitive)
     const existing = await Fault.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, "i") });
-    if (existing) return res.json(existing);
+    if (existing) {
+      return res.json({
+        ...existing.toObject(),
+        alreadyExists: true,
+        message: `"${existing.name}" already exists`,
+      });
+    }
 
     const newFault = new Fault({ name, price });
     await newFault.save();
-
-    res.json(newFault);
+    res.json({ ...newFault.toObject(), alreadyExists: false });
 
   } catch (err) {
-    // ✅ NEW — race-condition safety net via the unique index in models/Fault.js
     if (err.code === 11000) {
-      const winner = await Fault.findOne({
-        name: new RegExp(`^${escapeRegex((req.body.name || "").trim())}$`, "i")
+      const name = (req.body.name || "").trim();
+      const winner = await Fault.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, "i") });
+      return res.json({
+        ...winner.toObject(),
+        alreadyExists: true,
+        message: `"${winner.name}" already exists`,
       });
-      return res.json(winner);
     }
     console.error("Fault add error:", err);
     res.status(500).json({ message: "Error adding fault" });
@@ -41,12 +48,7 @@ router.post("/", async (req, res) => {
 
 // UPDATE fault
 router.put("/:id", async (req, res) => {
-  const updated = await Fault.findByIdAndUpdate(
-    req.params.id,
-    req.body,
-    { new: true }
-  );
-
+  const updated = await Fault.findByIdAndUpdate(req.params.id, req.body, { new: true });
   res.json(updated);
 });
 

@@ -2,8 +2,6 @@ const express = require("express");
 const router = express.Router();
 const Accessory = require("../models/Accessory");
 
-// Escapes regex special characters in the name so a name like "Ear (Right)" doesn't
-// break the RegExp or match unintended things.
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // GET all
@@ -18,24 +16,31 @@ router.post("/", async (req, res) => {
     const name = (req.body.name || "").trim();
     if (!name) return res.status(400).json({ message: "Name required" });
 
-    // fast-path check (avoids hitting the DB error path on the common case)
+    // fast-path check (case-insensitive)
     const existing = await Accessory.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, "i") });
-    if (existing) return res.json(existing);
+    if (existing) {
+      // ✅ NEW — tell the caller this was NOT a fresh add, it already existed.
+      return res.json({
+        ...existing.toObject(),
+        alreadyExists: true,
+        message: `"${existing.name}" already exists`,
+      });
+    }
 
     const newItem = new Accessory({ name });
     await newItem.save();
-    res.json(newItem);
+    res.json({ ...newItem.toObject(), alreadyExists: false });
 
   } catch (err) {
-    // ✅ NEW — race-condition safety net. If two requests slipped past the check above
-    // at the same time, MongoDB's unique index (see models/Accessory.js) rejects the
-    // second save with error code 11000. Instead of erroring out, just return whichever
-    // document actually made it into the DB.
+    // race-condition safety net via the unique index in models/Accessory.js
     if (err.code === 11000) {
-      const winner = await Accessory.findOne({
-        name: new RegExp(`^${escapeRegex((req.body.name || "").trim())}$`, "i")
+      const name = (req.body.name || "").trim();
+      const winner = await Accessory.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, "i") });
+      return res.json({
+        ...winner.toObject(),
+        alreadyExists: true,
+        message: `"${winner.name}" already exists`,
       });
-      return res.json(winner);
     }
     console.error("Accessory add error:", err);
     res.status(500).json({ message: "Error adding accessory" });

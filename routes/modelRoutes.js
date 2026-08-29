@@ -21,16 +21,20 @@ router.post("/", async (req, res) => {
     });
 
     if (exist) {
-      return res.json({ success: true, data: exist });
+      return res.json({
+        success: true,
+        alreadyExists: true,
+        message: `"${exist.name}" already exists under "${exist.make}"`,
+        data: exist,
+      });
     }
 
     const model = new Model({ name, make });
     await model.save();
 
-    res.json({ success: true, data: model });
+    res.json({ success: true, alreadyExists: false, data: model });
 
   } catch (err) {
-    // ✅ NEW — race-condition safety net via the unique compound index in models/Model.js
     if (err.code === 11000) {
       const name = (req.body.name || "").trim();
       const make = (req.body.make || "").trim();
@@ -38,7 +42,12 @@ router.post("/", async (req, res) => {
         name: new RegExp(`^${escapeRegex(name)}$`, "i"),
         make: new RegExp(`^${escapeRegex(make)}$`, "i"),
       });
-      return res.json({ success: true, data: winner });
+      return res.json({
+        success: true,
+        alreadyExists: true,
+        message: `"${winner.name}" already exists under "${winner.make}"`,
+        data: winner,
+      });
     }
     res.status(500).json({ message: err.message });
   }
@@ -50,13 +59,8 @@ router.get("/search/:name", async (req, res) => {
     const model = await Model.findOne({
       name: { $regex: escapeRegex(req.params.name), $options: "i" }
     });
-
-    if (!model) {
-      return res.status(404).json({ message: "Model not found ❌" });
-    }
-
+    if (!model) return res.status(404).json({ message: "Model not found ❌" });
     res.json(model);
-
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -66,15 +70,8 @@ router.get("/search/:name", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { name, make } = req.body;
-
-    const updated = await Model.findByIdAndUpdate(
-      req.params.id,
-      { name, make },
-      { new: true }
-    );
-
+    const updated = await Model.findByIdAndUpdate(req.params.id, { name, make }, { new: true });
     res.json({ success: true, data: updated });
-
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -84,9 +81,7 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     await Model.findByIdAndDelete(req.params.id);
-
     res.json({ success: true, message: "Deleted ✅" });
-
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

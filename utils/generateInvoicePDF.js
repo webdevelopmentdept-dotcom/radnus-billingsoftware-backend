@@ -52,8 +52,13 @@ const generateInvoicePDF = (job) => {
       job.service?.paymentMode === "Card" ? "CARD BILL" :
       "BILL";
 
-    // ── Received Date (repairDate) & Delivery Date ──
-    const receivedDateText = formatDate(job.service?.repairDate);
+    // ================= FIX =================
+    // 🔴 BUG FIX: "Received Date" was showing job.service?.repairDate, a
+    // manually-editable field on the Job Sheet, so it drifted from reality
+    // whenever an engineer changed the repair date. Now uses job.createdAt —
+    // the actual date the job sheet was first saved — matching the fix
+    // already applied on the frontend InvoiceBill.jsx page.
+    const receivedDateText = formatDate(job.createdAt);
     const deliveryDateText = formatDate(job.service?.deliveryDate);
 
     // ── Physical Condition / Accessories Received ──

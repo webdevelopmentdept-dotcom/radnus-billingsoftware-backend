@@ -8,7 +8,6 @@ const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 router.post("/", async (req, res) => {
   try {
     const name = (req.body.name || "").trim();
-
     if (!name) {
       return res.status(400).json({ message: "Make name required" });
     }
@@ -16,21 +15,29 @@ router.post("/", async (req, res) => {
     // fast-path check (case-insensitive)
     const existing = await Make.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, "i") });
     if (existing) {
-      return res.json({ success: true, data: existing });
+      return res.json({
+        success: true,
+        alreadyExists: true,
+        message: `"${existing.name}" already exists`,
+        data: existing,
+      });
     }
 
     const newMake = new Make({ name });
     await newMake.save();
 
-    res.json({ success: true, data: newMake });
+    res.json({ success: true, alreadyExists: false, data: newMake });
 
   } catch (err) {
-    // ✅ NEW — race-condition safety net via the unique index in models/Make.js
     if (err.code === 11000) {
-      const winner = await Make.findOne({
-        name: new RegExp(`^${escapeRegex((req.body.name || "").trim())}$`, "i")
+      const name = (req.body.name || "").trim();
+      const winner = await Make.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, "i") });
+      return res.json({
+        success: true,
+        alreadyExists: true,
+        message: `"${winner.name}" already exists`,
+        data: winner,
       });
-      return res.json({ success: true, data: winner });
     }
     console.error("Make add error:", err);
     res.status(400).json({ message: "Make already exists ❌" });
@@ -53,13 +60,8 @@ router.get("/search/:name", async (req, res) => {
     const make = await Make.findOne({
       name: { $regex: escapeRegex(req.params.name), $options: "i" }
     });
-
-    if (!make) {
-      return res.status(404).json({ message: "Not found" });
-    }
-
+    if (!make) return res.status(404).json({ message: "Not found" });
     res.json(make);
-
   } catch (err) {
     res.status(500).json({ message: "Search error" });
   }
@@ -69,15 +71,8 @@ router.get("/search/:name", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { name } = req.body;
-
-    const updated = await Make.findByIdAndUpdate(
-      req.params.id,
-      { name },
-      { new: true }
-    );
-
+    const updated = await Make.findByIdAndUpdate(req.params.id, { name }, { new: true });
     res.json(updated);
-
   } catch (err) {
     res.status(500).json({ message: "Update failed ❌" });
   }
@@ -88,7 +83,6 @@ router.delete("/:id", async (req, res) => {
   try {
     await Make.findByIdAndDelete(req.params.id);
     res.json({ success: true });
-
   } catch (err) {
     res.status(500).json({ message: "Delete failed ❌" });
   }

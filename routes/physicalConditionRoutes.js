@@ -16,21 +16,28 @@ router.post("/", async (req, res) => {
     const name = (req.body.name || "").trim();
     if (!name) return res.status(400).json({ message: "Name required" });
 
-    // fast-path check (avoids duplicates (case-insensitive)
     const existing = await PhysicalCondition.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, "i") });
-    if (existing) return res.json(existing);
+    if (existing) {
+      return res.json({
+        ...existing.toObject(),
+        alreadyExists: true,
+        message: `"${existing.name}" already exists`,
+      });
+    }
 
     const newItem = new PhysicalCondition({ name });
     await newItem.save();
-    res.json(newItem);
+    res.json({ ...newItem.toObject(), alreadyExists: false });
 
   } catch (err) {
-    // ✅ NEW — race-condition safety net via the unique index in models/PhysicalCondition.js
     if (err.code === 11000) {
-      const winner = await PhysicalCondition.findOne({
-        name: new RegExp(`^${escapeRegex((req.body.name || "").trim())}$`, "i")
+      const name = (req.body.name || "").trim();
+      const winner = await PhysicalCondition.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, "i") });
+      return res.json({
+        ...winner.toObject(),
+        alreadyExists: true,
+        message: `"${winner.name}" already exists`,
       });
-      return res.json(winner);
     }
     console.error("PhysicalCondition add error:", err);
     res.status(500).json({ message: "Error adding physical condition" });
