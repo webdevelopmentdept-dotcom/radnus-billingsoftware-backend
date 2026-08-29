@@ -2,20 +2,26 @@ const express = require("express");
 const router = express.Router();
 const Model = require("../models/Model");
 
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // ================= CREATE =================
 router.post("/", async (req, res) => {
   try {
-    const { name, make } = req.body;
+    const name = (req.body.name || "").trim();
+    const make = (req.body.make || "").trim();
 
     if (!name || !make) {
       return res.status(400).json({ message: "All fields required" });
     }
 
-    const exist = await Model.findOne({ name, make });
+    // fast-path check (case-insensitive, name + make together)
+    const exist = await Model.findOne({
+      name: new RegExp(`^${escapeRegex(name)}$`, "i"),
+      make: new RegExp(`^${escapeRegex(make)}$`, "i"),
+    });
 
     if (exist) {
-      return res.status(400).json({ message: "Model already exists ❌" });
+      return res.json({ success: true, data: exist });
     }
 
     const model = new Model({ name, make });
@@ -24,16 +30,25 @@ router.post("/", async (req, res) => {
     res.json({ success: true, data: model });
 
   } catch (err) {
+    // ✅ NEW — race-condition safety net via the unique compound index in models/Model.js
+    if (err.code === 11000) {
+      const name = (req.body.name || "").trim();
+      const make = (req.body.make || "").trim();
+      const winner = await Model.findOne({
+        name: new RegExp(`^${escapeRegex(name)}$`, "i"),
+        make: new RegExp(`^${escapeRegex(make)}$`, "i"),
+      });
+      return res.json({ success: true, data: winner });
+    }
     res.status(500).json({ message: err.message });
   }
 });
-
 
 // ================= SEARCH =================
 router.get("/search/:name", async (req, res) => {
   try {
     const model = await Model.findOne({
-      name: { $regex: req.params.name, $options: "i" }
+      name: { $regex: escapeRegex(req.params.name), $options: "i" }
     });
 
     if (!model) {
@@ -46,7 +61,6 @@ router.get("/search/:name", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
-
 
 // ================= UPDATE =================
 router.put("/:id", async (req, res) => {
@@ -66,7 +80,6 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-
 // ================= DELETE =================
 router.delete("/:id", async (req, res) => {
   try {
@@ -78,7 +91,6 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
-
 
 // ================= GET BY MAKE =================
 router.get("/:make", async (req, res) => {

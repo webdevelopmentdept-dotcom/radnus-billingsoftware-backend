@@ -2,13 +2,21 @@ const express = require("express");
 const router = express.Router();
 const Make = require("../models/Make");
 
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /* ================= ADD ================= */
 router.post("/", async (req, res) => {
   try {
-    const { name } = req.body;
+    const name = (req.body.name || "").trim();
 
     if (!name) {
       return res.status(400).json({ message: "Make name required" });
+    }
+
+    // fast-path check (case-insensitive)
+    const existing = await Make.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, "i") });
+    if (existing) {
+      return res.json({ success: true, data: existing });
     }
 
     const newMake = new Make({ name });
@@ -17,6 +25,14 @@ router.post("/", async (req, res) => {
     res.json({ success: true, data: newMake });
 
   } catch (err) {
+    // ✅ NEW — race-condition safety net via the unique index in models/Make.js
+    if (err.code === 11000) {
+      const winner = await Make.findOne({
+        name: new RegExp(`^${escapeRegex((req.body.name || "").trim())}$`, "i")
+      });
+      return res.json({ success: true, data: winner });
+    }
+    console.error("Make add error:", err);
     res.status(400).json({ message: "Make already exists ❌" });
   }
 });
@@ -35,7 +51,7 @@ router.get("/", async (req, res) => {
 router.get("/search/:name", async (req, res) => {
   try {
     const make = await Make.findOne({
-      name: { $regex: req.params.name, $options: "i" }
+      name: { $regex: escapeRegex(req.params.name), $options: "i" }
     });
 
     if (!make) {
