@@ -148,18 +148,39 @@ router.get("/filter", async (req, res) => {
       }
     }
 
-    if (fromDate || toDate) {
-      query.createdAt = {};
-      if (fromDate) {
-        const start = new Date(fromDate); start.setHours(0, 0, 0, 0);
-        query.createdAt.$gte = start;
-      }
-      if (toDate) {
-        const end = new Date(toDate); end.setHours(23, 59, 59, 999);
-        query.createdAt.$lte = end;
+    // ✅ FIX (Option 2) — job creation date (createdAt) மட்டும் இல்லாம், அந்த
+    // job-ல rebill/income entry (service.revenueEntries.date) அல்லது spare
+    // item (spareItems.date) இந்த date range-ல எங்காவது இருந்தாலும் அந்த job
+    // இப்போ தேர்ந்தெடுக்கப்படும். இல்லனா July-ல create ஆன job August-ல
+    // rebill ஆனா, August filter பண்ணும்போது அந்த job முழுசுமே table-ல
+    // தெரியாம போயிடும்.
+     if (fromDate || toDate) {
+      const start = fromDate ? new Date(fromDate) : null;
+      if (start) start.setHours(0, 0, 0, 0);
+      // ✅ FIX — To Date காலி-ஆ இருந்தா, From Date-ஐயே end-ஆ வெச்சி ஒரே நாளுக்கு
+      // narrow பண்ணாம, இன்னைக்கு வரைக்கும் (end of today) search பண்ணும்.
+      const end = toDate ? new Date(toDate) : new Date();
+      end.setHours(23, 59, 59, 999);
+
+      const dateCond = (field) => {
+        const c = { $lte: end };
+        if (start) c.$gte = start;
+        return { [field]: c };
+      };
+
+      const dateOr = [
+        dateCond("createdAt"),
+        dateCond("service.revenueEntries.date"),
+        dateCond("spareItems.date"),
+      ];
+
+      if (query.$and) {
+        query.$and.push({ $or: dateOr });
+      } else if (query.$or) {
+        query.$and = [{ $or: query.$or }, { $or: dateOr }];
+        delete query.$or;
       } else {
-        const end = new Date(fromDate); end.setHours(23, 59, 59, 999);
-        query.createdAt.$lte = end;
+        query.$or = dateOr;
       }
     }
 
@@ -290,8 +311,37 @@ router.post("/:id/send-whatsapp", async (req, res) => {
   }
 });
 
+
+
 /* =====================================================
    REBILL — Reopen an invoiced job for re-repair
+
+   ✅ FIX (NEW) — BEFORE resetting income/serviceCharge/othersAmount to 0,
+   push a full "before rebill" snapshot into rebillHistory. This is now the
+   SINGLE SOURCE OF TRUTH for "what did this job earn before it got
+   rebilled" — Income, Service, Spare, Others — all captured in one place,
+   at the exact moment of reset, using the REAL pre-rebill numbers.
+
+   Previously only serviceCharge/spareCharge were pushed to rebillHistory,
+   and that push happened later in updateJobSheet() using whatever the user
+   typed in AFTER rebill (i.e. the NEW cycle's numbers) — which mislabeled
+   new-cycle data as "history". That duplicate/wrong push has been removed
+   from updateJobSheet() (see jobSheetController.js) since this route now
+   owns the history snapshot.
+
+   ✅ Others Amount — previously reset straight to 0 here with ZERO
+   snapshot anywhere (not even revenueEntries), so old cycle's Others
+   amount was permanently lost the moment someone hit Rebill. Now captured
+   in the same snapshot.
+
+   ✅ revenueEntries snapshot (income/service ledger used by Value Report /
+   All Report) is UNCHANGED — kept exactly as before, so those two reports
+   keep working the same way they always did.
+
+   ✅ FIX 2 — spareItems array is CUMULATIVE (every spare part ever added,
+   across every rebill cycle, stays in the array so Value Report can show
+   full history). So "service.spareCharge" must NOT be reset to 0 here —
+   it has to stay equal to the sum of all spareItems.
 ===================================================== */
 router.put("/:id/rebill", async (req, res) => {
   try {
@@ -300,14 +350,68 @@ router.put("/:id/rebill", async (req, res) => {
     if (!job) return res.status(404).json({ message: "Job not found" });
     if (!job.isInvoiced) return res.status(400).json({ message: "Job is not invoiced yet" });
 
+    // ── snapshot untracked income/service before it gets zeroed (unchanged) ──
+    const existingEntries = job.service?.revenueEntries || [];
+    const trackedIncome  = existingEntries.reduce((s, e) => s + Number(e.income  || 0), 0);
+    const trackedService = existingEntries.reduce((s, e) => s + Number(e.service || 0), 0);
+
+    const currentIncome  = Number(job.service?.income        || 0);
+    const currentService = Number(job.service?.serviceCharge || 0);
+    const currentSpare   = Number(job.service?.spareCharge   || 0);
+    const currentOthers  = Number(job.service?.othersAmount  || 0);
+    const currentRemarks = job.service?.remarks || "";
+    const currentStatus  = job.device?.mobileStatus || "";
+
+    const untrackedIncome  = Math.max(0, currentIncome  - trackedIncome);
+    const untrackedService = Math.max(0, currentService - trackedService);
+
+    const snapshotDate =
+      job.service?.incomeDate ||
+      job.service?.repairDate ||
+      job.createdAt ||
+      new Date();
+
+    const newRevenueEntries = [...existingEntries];
+    if (untrackedIncome > 0 || untrackedService > 0) {
+      newRevenueEntries.push({
+        date: snapshotDate,
+        service: untrackedService,
+        spare: 0,
+        income: untrackedIncome,
+        others: 0,
+      });
+    }
+
+    // ✅ NEW — the real "Before Rebill" record for the Rebill Report.
+    // Income/Service/Spare/Others exactly as they stood right before reset.
+    const beforeRebillSnapshot = {
+      rebilledAt:    new Date(),
+      rebilledBy:    rebilledBy || "admin",
+      income:        currentIncome,
+      serviceCharge: currentService,
+      spareCharge:   currentSpare,
+      othersAmount:  currentOthers,
+      remarks:       currentRemarks,
+      status:        currentStatus,
+    };
+
+    // ✅ spareItems array itself is untouched by rebill (stays cumulative),
+    // so spareCharge should always equal the sum of it, never hard-reset to 0.
+    const spareTotal = (job.spareItems || []).reduce((s, it) => s + Number(it.amount || 0), 0);
+
     await JobSheet.findByIdAndUpdate(req.params.id, {
-      isInvoiced: false,
-      rebillPending: true,
-      "device.mobileStatus": "Received",
-      "service.serviceCharge": 0,
-      "service.spareCharge": 0,
-      "service.remarks": "",
-      spareItems: [],
+      $set: {
+        isInvoiced: false,
+        rebillPending: true,
+        "device.mobileStatus": "Received",
+        "service.serviceCharge": 0,
+        "service.spareCharge": spareTotal,   // stays cumulative
+        "service.income": 0,
+        "service.incomeDate": null,
+        "service.othersAmount": 0,
+        "service.remarks": "",
+        "service.revenueEntries": newRevenueEntries,   // unchanged behaviour
+      },
       $push: {
         statusLogs: {
           status: "Received",
@@ -315,6 +419,7 @@ router.put("/:id/rebill", async (req, res) => {
           timestamp: new Date(),
           note: "Rebill opened",
         },
+        rebillHistory: beforeRebillSnapshot,   // ✅ real before-rebill numbers, saved right now
       },
     });
 
@@ -337,6 +442,16 @@ router.put("/:id/rebill", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+
+
+
+
+
+
+
+
+
 
 /* =====================================================
    MANUAL JOB SHEET INSERT (specific number)

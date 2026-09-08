@@ -108,19 +108,6 @@ exports.updateJobSheet = async (req, res) => {
       });
     }
 
-    let rebillSnapshot = null;
-    if (job.rebillPending) {
-      rebillSnapshot = {
-        rebilledAt:    new Date(),
-        rebilledBy:    job.statusLogs?.slice(-1)[0]?.updatedBy || "admin",
-        serviceCharge: Number(serviceData.serviceCharge || 0),
-        spareCharge:   Number(serviceData.spareCharge   || 0),
-        spareItems,
-        remarks:       serviceData.remarks || "",
-        status:        "Received",
-      };
-    }
-
     // ✅ Build update — service object EXPLICIT-ஆ (எந்த field-உம் miss ஆகாது)
     const updateData = {
       jobSheetNo:        req.body.jobSheetNo,
@@ -138,6 +125,12 @@ exports.updateJobSheet = async (req, res) => {
         serviceRep:     serviceData.serviceRep     || "",
         serviceCharge:  Number(serviceData.serviceCharge  || 0),
         spareCharge:    Number(serviceData.spareCharge    || 0),
+        // ✅ FIX — spareBaseline (snapshotted by the /rebill route) MUST be carried
+        // through every normal Update too. This object lists every service.* field
+        // explicitly, so any field left out here gets silently wiped to undefined
+        // on the next Update — which would erase the rebill-cycle spare baseline
+        // and bring back the wrong Service Charge auto-calc bug.
+        spareBaseline:  Number(serviceData.spareBaseline  || 0),
         income:         Number(serviceData.income  || 0),
         incomeDate:     serviceData.incomeDate     || null,
         othersAmount:   Number(serviceData.othersAmount || 0),
@@ -155,18 +148,29 @@ exports.updateJobSheet = async (req, res) => {
       },
     };
 
-    if (req.file) {
+      if (req.file) {
       updateData.idProofImage = { url: req.file.path, public_id: req.file.filename };
     }
 
-    if (rebillSnapshot) {
-      updateData.rebillPending = false;
-      updateData.$push = { rebillHistory: rebillSnapshot };
+    // ✅ FIX — plain fields (jobSheetNo, customer, service...) மற்றும் $push
+    // operator ஒரே update object-ல கலந்திருந்தா, MongoDB/Mongoose reliable-ஆ
+    // handle பண்ணாது — $push silently drop ஆகிடும் (rebillPending மட்டும்
+    // false ஆகும், rebillHistory எப்பவும் காலியா இருக்கும், error காட்டாம).
+    // Everything-ஐயும் explicit-ஆ $set/$push-ஆ பிரிச்சு தர்றது.
+    // ✅ FIX — rebillHistory is now correctly snapshotted at REBILL TIME (see the
+    // /rebill route in routes/jobSheetRoutes.js), which captures the OLD invoice
+    // before it gets zeroed out. This save ("Save Rebill" / normal Update) only
+    // needs to clear the rebillPending flag — pushing another entry here would
+    // reuse the NEWLY typed-in charges and wrongly mislabel them as "before rebill"
+    // (that was the original bug).
+    const mongoUpdate = { $set: updateData };
+    if (job.rebillPending) {
+      mongoUpdate.$set.rebillPending = false;
     }
 
     await JobSheet.findByIdAndUpdate(
       req.params.id,
-      updateData,
+      mongoUpdate,
       { new: true }
     );
 
