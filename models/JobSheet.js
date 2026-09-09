@@ -43,8 +43,10 @@ const TransferLogSchema = new mongoose.Schema({
 const RebillHistorySchema = new mongoose.Schema({
   rebilledAt:    { type: Date,   default: Date.now },
   rebilledBy:    { type: String, default: "admin"  },
+  income:        { type: Number, default: 0 },   // ✅ FIX — was missing, silently dropped by strict mode
   serviceCharge: { type: Number, default: 0 },
   spareCharge:   { type: Number, default: 0 },
+  othersAmount:  { type: Number, default: 0 },   // ✅ FIX — was missing, silently dropped by strict mode
   spareItems:    { type: Array,  default: [] },
   remarks:       { type: String, default: "" },
   status:        { type: String, default: "" },
@@ -75,6 +77,7 @@ service: {
     engineer: String, dealer: String, drawer: String,
      
     serviceCharge:{ type: Number, default: 0 }, spareCharge: { type: Number, default: 0 },
+     spareBaseline: { type: Number, default: 0 },   // ✅ FIX — was missing, silently dropped by strict mode
      income: { type: Number, default: 0 }, 
      incomeDate: { type: Date, default: null },   // ✅ FIX — missing field caused strict-mode drop
      othersAmount: { type: Number, default: 0 },

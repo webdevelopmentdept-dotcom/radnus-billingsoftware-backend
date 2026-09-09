@@ -406,6 +406,7 @@ router.put("/:id/rebill", async (req, res) => {
         "device.mobileStatus": "Received",
         "service.serviceCharge": 0,
         "service.spareCharge": spareTotal,   // stays cumulative
+           "service.spareBaseline": currentSpare, 
         "service.income": 0,
         "service.incomeDate": null,
         "service.othersAmount": 0,
