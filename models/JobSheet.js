@@ -39,14 +39,14 @@ const TransferLogSchema = new mongoose.Schema({
   transferredAt: { type: Date, default: Date.now }
 });
 
-// ✅ NEW — Rebill history snapshot
 const RebillHistorySchema = new mongoose.Schema({
   rebilledAt:    { type: Date,   default: Date.now },
   rebilledBy:    { type: String, default: "admin"  },
-  income:        { type: Number, default: 0 },   // ✅ FIX — was missing, silently dropped by strict mode
+  income:        { type: Number, default: 0 },
+  incomeDate:    { type: Date },   // ✅ NEW — exact date THIS cycle's income was recorded, not "today"
   serviceCharge: { type: Number, default: 0 },
   spareCharge:   { type: Number, default: 0 },
-  othersAmount:  { type: Number, default: 0 },   // ✅ FIX — was missing, silently dropped by strict mode
+  othersAmount:  { type: Number, default: 0 },
   spareItems:    { type: Array,  default: [] },
   remarks:       { type: String, default: "" },
   status:        { type: String, default: "" },

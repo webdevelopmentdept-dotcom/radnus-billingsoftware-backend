@@ -350,11 +350,14 @@ router.put("/:id/rebill", async (req, res) => {
     if (!job) return res.status(404).json({ message: "Job not found" });
     if (!job.isInvoiced) return res.status(400).json({ message: "Job is not invoiced yet" });
 
-    // ── snapshot untracked income/service before it gets zeroed (unchanged) ──
-    const existingEntries = job.service?.revenueEntries || [];
-    const trackedIncome  = existingEntries.reduce((s, e) => s + Number(e.income  || 0), 0);
-    const trackedService = existingEntries.reduce((s, e) => s + Number(e.service || 0), 0);
-
+      // ✅ FIX — rebillHistory (pushed below) is now the SINGLE source of truth
+    // for every past cycle's income/service/spare/others, including its own
+    // incomeDate. The old "untracked catch-up" logic that tried to synthesize
+    // a matching revenueEntries row here was fragile — it silently dropped or
+    // mis-dated the pre-rebill income+service whenever a job was invoiced
+    // without ever going through a normal Update first (revenueEntries stayed
+    // empty from creation). revenueEntries is now used ONLY for in-cycle
+    // amount changes (normal Update deltas); rebill leaves it untouched.
     const currentIncome  = Number(job.service?.income        || 0);
     const currentService = Number(job.service?.serviceCharge || 0);
     const currentSpare   = Number(job.service?.spareCharge   || 0);
@@ -362,39 +365,17 @@ router.put("/:id/rebill", async (req, res) => {
     const currentRemarks = job.service?.remarks || "";
     const currentStatus  = job.device?.mobileStatus || "";
 
-    const untrackedIncome  = Math.max(0, currentIncome  - trackedIncome);
-    const untrackedService = Math.max(0, currentService - trackedService);
-
-    const snapshotDate =
-      job.service?.incomeDate ||
-      job.service?.repairDate ||
-      job.createdAt ||
-      new Date();
-
-    const newRevenueEntries = [...existingEntries];
-    if (untrackedIncome > 0 || untrackedService > 0) {
-      newRevenueEntries.push({
-        date: snapshotDate,
-        service: untrackedService,
-        spare: 0,
-        income: untrackedIncome,
-        others: 0,
-      });
-    }
-
-    // ✅ NEW — the real "Before Rebill" record for the Rebill Report.
-    // Income/Service/Spare/Others exactly as they stood right before reset.
     const beforeRebillSnapshot = {
       rebilledAt:    new Date(),
       rebilledBy:    rebilledBy || "admin",
       income:        currentIncome,
+      incomeDate:    job.service?.incomeDate || null,   // ✅ NEW — preserves the exact recorded date
       serviceCharge: currentService,
       spareCharge:   currentSpare,
       othersAmount:  currentOthers,
       remarks:       currentRemarks,
       status:        currentStatus,
-    };
-
+    }; 
     // ✅ spareItems array itself is untouched by rebill (stays cumulative),
     // so spareCharge should always equal the sum of it, never hard-reset to 0.
     const spareTotal = (job.spareItems || []).reduce((s, it) => s + Number(it.amount || 0), 0);
@@ -411,7 +392,7 @@ router.put("/:id/rebill", async (req, res) => {
         "service.incomeDate": null,
         "service.othersAmount": 0,
         "service.remarks": "",
-        "service.revenueEntries": newRevenueEntries,   // unchanged behaviour
+     
       },
       $push: {
         statusLogs: {
