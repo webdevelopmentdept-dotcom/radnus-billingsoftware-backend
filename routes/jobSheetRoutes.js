@@ -818,7 +818,49 @@ router.put("/:id/cancel", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+router.patch("/:id/transfer", async (req, res) => {
+  try {
+    const { from, to, note } = req.body;
 
+    if (!to || !to.trim()) {
+      return res.status(400).json({ message: "Target (to) is required" });
+    }
+
+    const job = await JobSheet.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    const isReception = to === "Reception";
+
+    const updated = await JobSheet.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: { "service.engineer": isReception ? "" : to },
+        $push: {
+          transferLog: {
+            from: from || "",
+            to,
+            note: note || "",
+            transferredAt: new Date(),
+          },
+          statusLogs: {
+            status: job.device?.mobileStatus || "Received",
+            updatedBy: from || "admin",
+            timestamp: new Date(),
+            note: isReception
+              ? `Transferred back to Reception${note ? `: ${note}` : ""}`
+              : `Transferred to ${to}${note ? `: ${note}` : ""}`,
+          },
+        },
+      },
+      { new: true }
+    );
+
+    res.json(updated);
+  } catch (err) {
+    console.error("TRANSFER ERROR:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
 
 router.get("/:id", getJobSheetById);
 

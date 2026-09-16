@@ -74,39 +74,88 @@ exports.updateJobSheet = async (req, res) => {
       ? JSON.parse(req.body.advanceItems)
       : (req.body.advanceItems || []);
 
-    // ✅ delta calculation for date-wise revenue ledger (spare & others EXCLUDE — avanga own date items vachi track aagum)
     const oldService = job.service || {};
-
-    const deltaService = Math.max(
-      0,
-      Number(serviceData.serviceCharge || 0) -
-      Number(oldService.serviceCharge || 0)
-    );
-
-    const deltaIncome = Math.max(
-      0,
-      Number(serviceData.income || 0) -
-      Number(oldService.income || 0)
-    );
-
-    const newRevenueEntries = [
-      ...(oldService.revenueEntries || [])
-    ];
 
     // ✅ Use manually selected Income Date instead of always using today's date.
     const revenueDate = serviceData.incomeDate
       ? new Date(`${serviceData.incomeDate}T00:00:00`)
       : new Date();
 
-    if (deltaService > 0 || deltaIncome > 0) {
-      newRevenueEntries.push({
+    /* ================= REVENUE ENTRIES — SELF-CORRECTING REBUILD (FIX) =================
+       🔴 BUG (old code) — a NEW row was pushed to revenueEntries only when Income/
+       Service went UP versus the last save (`Math.max(0, new - old)`). If the user
+       typed a wrong amount, saved (a row got pushed for that INCREASE), then
+       corrected it back down on the SAME day, the decrease produced a delta of
+       0 (Math.max clamps negatives to 0) — so nothing was pushed for the
+       correction, but the earlier wrong-amount row was NEVER removed either.
+       The top-level income/serviceCharge fields ended up correct, but
+       revenueEntries silently kept the stale, too-high row forever — which is
+       exactly what Value Report / Service Report / Income Report / My Report
+       sum from, so the mistake kept reappearing in every report even after
+       being "fixed" and deleted on the Job Sheet itself.
+
+       ✅ FIX — instead of ever pushing a raw delta, TODAY's entry (matching
+       revenueDate's calendar day) is fully RECOMPUTED on every save:
+         today's service = current serviceCharge total − (sum of every OTHER
+                            day's service entries in this cycle)
+         today's income  = current income total        − (sum of every OTHER
+                            day's income  entries in this cycle)
+       Any existing entry for today's date is replaced (not appended to), so
+       typing a value, saving, then correcting it and saving again — all on
+       the same day — always converges to the true current amount instead of
+       stacking corrections as extra permanent rows.
+
+       Entries from BEFORE the current rebill cycle (i.e. already invoiced,
+       pre-rebill history) are left completely untouched — only the live,
+       still-open cycle's entries are ever rebuilt this way. A day that's not
+       "today" can't be self-corrected by a later save (that historical
+       mistake needs a one-time manual cleanup), but this stops the bug from
+       happening again on the SAME day going forward — which covers the
+       common "typo → immediately notice → fix" case entirely. */
+    const rebillHistoryArr = job.rebillHistory || [];
+    const lastRebill = rebillHistoryArr.length > 0
+      ? rebillHistoryArr[rebillHistoryArr.length - 1]
+      : null;
+    const cycleStart = lastRebill?.rebilledAt ? new Date(lastRebill.rebilledAt) : null;
+
+    const allEntries = oldService.revenueEntries || [];
+    const priorCycleEntries = cycleStart
+      ? allEntries.filter(e => e.date && new Date(e.date) < cycleStart)
+      : [];
+    const currentCycleEntries = cycleStart
+      ? allEntries.filter(e => e.date && new Date(e.date) >= cycleStart)
+      : allEntries;
+
+    const revenueDayKey = revenueDate.toISOString().slice(0, 10);
+
+    const otherDayEntries = currentCycleEntries.filter(
+      e => !e.date || new Date(e.date).toISOString().slice(0, 10) !== revenueDayKey
+    );
+
+    const sumOtherDaysService = otherDayEntries.reduce((s, e) => s + Number(e.service || 0), 0);
+    const sumOtherDaysIncome  = otherDayEntries.reduce((s, e) => s + Number(e.income  || 0), 0);
+
+    const targetService = Number(serviceData.serviceCharge || 0);
+    const targetIncome  = Number(serviceData.income || 0);
+
+    // today's entry = whatever's needed so (other days + today) === the true
+    // current total — this is what makes same-day corrections self-heal
+    // instead of leaving a stale extra row behind.
+    const todayService = Math.max(0, targetService - sumOtherDaysService);
+    const todayIncome  = Math.max(0, targetIncome  - sumOtherDaysIncome);
+
+    const rebuiltCurrentCycle = [...otherDayEntries];
+    if (todayService > 0 || todayIncome > 0) {
+      rebuiltCurrentCycle.push({
         date: revenueDate,
-        service: deltaService,
+        service: todayService,
         spare: 0,
-        income: deltaIncome,
+        income: todayIncome,
         others: 0,
       });
     }
+
+    const newRevenueEntries = [...priorCycleEntries, ...rebuiltCurrentCycle];
 
     // ✅ Build update — service object EXPLICIT-ஆ (எந்த field-உம் miss ஆகாது)
     const updateData = {

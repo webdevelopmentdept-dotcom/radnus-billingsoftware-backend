@@ -98,7 +98,8 @@ service: {
     remarks: String,
     advanceAmount: { type: Number, default: 0 },
    advanceItems: { type: [AdvanceItemSchema], default: [] },
-
+othersItems: { type: [OthersItemSchema], default: [] },
+advanceDate: { type: Date },
     margin:        { type: Number, default: 0 },
     serviceRep:    { type: String, default: "" },   
 
