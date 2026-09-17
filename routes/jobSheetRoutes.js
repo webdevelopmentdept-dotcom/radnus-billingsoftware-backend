@@ -148,39 +148,28 @@ router.get("/filter", async (req, res) => {
       }
     }
 
-    // ✅ FIX (Option 2) — job creation date (createdAt) மட்டும் இல்லாம், அந்த
-    // job-ல rebill/income entry (service.revenueEntries.date) அல்லது spare
-    // item (spareItems.date) இந்த date range-ல எங்காவது இருந்தாலும் அந்த job
-    // இப்போ தேர்ந்தெடுக்கப்படும். இல்லனா July-ல create ஆன job August-ல
-    // rebill ஆனா, August filter பண்ணும்போது அந்த job முழுசுமே table-ல
-    // தெரியாம போயிடும்.
-     if (fromDate || toDate) {
+       // ✅ FIX — Date filter ஒரு field மேல மட்டும் apply ஆகும்: createdAt.
+    // முன்பு revenueEntries.date / spareItems.date-உம் சேர்த்து $or பண்ணி,
+    // Aug-ல create ஆன job Sep-ல rebill/spare-update ஆனா, அந்த job Sep
+    // filter-லயும் தெரிஞ்சு (Date column-ல Aug காட்டி) குழப்பம் தந்துச்சு.
+    // Income-ஐ date range-வாரியா பாக்க Value Report already இருக்கு —
+    // All Report இப்போ createdAt-ஐ மட்டும் strict-ஆ filter பண்ணும்.
+    if (fromDate || toDate) {
       const start = fromDate ? new Date(fromDate) : null;
       if (start) start.setHours(0, 0, 0, 0);
-      // ✅ FIX — To Date காலி-ஆ இருந்தா, From Date-ஐயே end-ஆ வெச்சி ஒரே நாளுக்கு
-      // narrow பண்ணாம, இன்னைக்கு வரைக்கும் (end of today) search பண்ணும்.
       const end = toDate ? new Date(toDate) : new Date();
       end.setHours(23, 59, 59, 999);
 
-      const dateCond = (field) => {
-        const c = { $lte: end };
-        if (start) c.$gte = start;
-        return { [field]: c };
-      };
-
-      const dateOr = [
-        dateCond("createdAt"),
-        dateCond("service.revenueEntries.date"),
-        dateCond("spareItems.date"),
-      ];
+      const createdAtCond = { $lte: end };
+      if (start) createdAtCond.$gte = start;
 
       if (query.$and) {
-        query.$and.push({ $or: dateOr });
+        query.$and.push({ createdAt: createdAtCond });
       } else if (query.$or) {
-        query.$and = [{ $or: query.$or }, { $or: dateOr }];
+        query.$and = [{ $or: query.$or }, { createdAt: createdAtCond }];
         delete query.$or;
       } else {
-        query.$or = dateOr;
+        query.createdAt = createdAtCond;
       }
     }
 
