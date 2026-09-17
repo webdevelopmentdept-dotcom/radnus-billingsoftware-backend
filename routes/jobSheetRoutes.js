@@ -351,6 +351,11 @@ router.put("/:id/rebill", async (req, res) => {
     const currentService = Number(job.service?.serviceCharge || 0);
     const currentSpare   = Number(job.service?.spareCharge   || 0);
     const currentOthers  = Number(job.service?.othersAmount  || 0);
+    // ✅ NEW — Advance amount, same pattern as spareCharge. advanceItems array is
+    // CUMULATIVE (never wiped) — this baseline is just a snapshot of the running
+    // total AT rebill time, so AdvancePopup can split "before / after rebill"
+    // exactly like SparePopup already does with spareBaseline.
+    const currentAdvance = Number(job.service?.advanceAmount || 0);
     const currentRemarks = job.service?.remarks || "";
     const currentStatus  = job.device?.mobileStatus || "";
 
@@ -358,13 +363,14 @@ router.put("/:id/rebill", async (req, res) => {
       rebilledAt:    new Date(),
       rebilledBy:    rebilledBy || "admin",
       income:        currentIncome,
-      incomeDate:    job.service?.incomeDate || null,   // ✅ NEW — preserves the exact recorded date
+      incomeDate:    job.service?.incomeDate || null,
       serviceCharge: currentService,
       spareCharge:   currentSpare,
       othersAmount:  currentOthers,
+      advanceAmount: currentAdvance,   // ✅ NEW
       remarks:       currentRemarks,
       status:        currentStatus,
-    }; 
+    };
     // ✅ spareItems array itself is untouched by rebill (stays cumulative),
     // so spareCharge should always equal the sum of it, never hard-reset to 0.
     const spareTotal = (job.spareItems || []).reduce((s, it) => s + Number(it.amount || 0), 0);
@@ -377,6 +383,7 @@ router.put("/:id/rebill", async (req, res) => {
         "service.serviceCharge": 0,
         "service.spareCharge": spareTotal,   // stays cumulative
            "service.spareBaseline": currentSpare, 
+            "service.advanceBaseline": currentAdvance,
         "service.income": 0,
         "service.incomeDate": null,
         "service.othersAmount": 0,

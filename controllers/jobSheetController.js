@@ -188,6 +188,9 @@ exports.updateJobSheet = async (req, res) => {
         repairDate:     serviceData.repairDate     || null,
         deliveryDate:   serviceData.deliveryDate   || null,
         advanceAmount:  Number(serviceData.advanceAmount  || 0),
+     
+      
+           advanceBaseline: Number(serviceData.advanceBaseline || 0),  
         advanceItems:   advanceItems,
         margin:         Number(serviceData.margin  || 0),
         instaFollowers: serviceData.instaFollowers || "",
