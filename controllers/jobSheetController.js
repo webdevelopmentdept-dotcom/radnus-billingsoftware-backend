@@ -76,6 +76,14 @@ exports.updateJobSheet = async (req, res) => {
 
     const oldService = job.service || {};
 
+    // ================= REVENUE-CHANGE GUARD (NEW) =================
+    // Snapshot of what Service Charge / Income were BEFORE this save, taken
+    // from the DB record we just loaded. Used below to detect whether this
+    // save actually changed the money, or was just a status/remarks/engineer
+    // edit that happened to re-submit the same amounts.
+    const previousServiceCharge = Number(oldService.serviceCharge || 0);
+    const previousIncome        = Number(oldService.income        || 0);
+
     // ✅ Use manually selected Income Date instead of always using today's date.
     const revenueDate = serviceData.incomeDate
       ? new Date(`${serviceData.incomeDate}T00:00:00`)
@@ -138,24 +146,45 @@ exports.updateJobSheet = async (req, res) => {
     const targetService = Number(serviceData.serviceCharge || 0);
     const targetIncome  = Number(serviceData.income || 0);
 
-    // today's entry = whatever's needed so (other days + today) === the true
-    // current total — this is what makes same-day corrections self-heal
-    // instead of leaving a stale extra row behind.
-    const todayService = Math.max(0, targetService - sumOtherDaysService);
-    const todayIncome  = Math.max(0, targetIncome  - sumOtherDaysIncome);
+    // ================= REVENUE-CHANGE GUARD (NEW) =================
+    // 🔴 THE REAL BUG: revenueEntries used to get rebuilt on EVERY save, even
+    // when Service Charge / Income never actually changed (e.g. Update was
+    // clicked only to change Device Status, Remarks, or Engineer). For an
+    // old job that never had revenueEntries before, that meant its FULL
+    // historical serviceCharge/income got silently re-dated to TODAY on the
+    // very next unrelated Update — corrupting every "Transaction Date"
+    // report the moment anyone touches that job again, months later.
+    // ✅ FIX — only rebuild revenueEntries when serviceCharge or income
+    // genuinely changed THIS save, compared to what was in the DB before.
+    const revenueChangedThisSave =
+      targetService !== previousServiceCharge || targetIncome !== previousIncome;
 
-    const rebuiltCurrentCycle = [...otherDayEntries];
-    if (todayService > 0 || todayIncome > 0) {
-      rebuiltCurrentCycle.push({
-        date: revenueDate,
-        service: todayService,
-        spare: 0,
-        income: todayIncome,
-        others: 0,
-      });
+    let newRevenueEntries;
+    if (!revenueChangedThisSave) {
+      // Nothing about the money changed — leave revenueEntries exactly as it
+      // was. This is what stops a routine status/remarks/engineer edit from
+      // ever injecting a bogus "today" entry for an untouched charge.
+      newRevenueEntries = allEntries;
+    } else {
+      // today's entry = whatever's needed so (other days + today) === the true
+      // current total — this is what makes same-day corrections self-heal
+      // instead of leaving a stale extra row behind.
+      const todayService = Math.max(0, targetService - sumOtherDaysService);
+      const todayIncome  = Math.max(0, targetIncome  - sumOtherDaysIncome);
+
+      const rebuiltCurrentCycle = [...otherDayEntries];
+      if (todayService > 0 || todayIncome > 0) {
+        rebuiltCurrentCycle.push({
+          date: revenueDate,
+          service: todayService,
+          spare: 0,
+          income: todayIncome,
+          others: 0,
+        });
+      }
+
+      newRevenueEntries = [...priorCycleEntries, ...rebuiltCurrentCycle];
     }
-
-    const newRevenueEntries = [...priorCycleEntries, ...rebuiltCurrentCycle];
 
     // ✅ Build update — service object EXPLICIT-ஆ (எந்த field-உம் miss ஆகாது)
     const updateData = {
