@@ -218,6 +218,26 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
     const parsedService = JSON.parse(service || "{}");
     parsedService.advanceItems = JSON.parse(advanceItems || "[]");
 
+    // ✅ FIX — seed revenueEntries at creation too, mirroring updateJobSheet's rebuild.
+    // Without this, a job saved ONCE with Income/Service already filled never gets a
+    // ledger entry until someone later CHANGES the amount — silently dropping
+    // Service/Income from every Transaction-Date report (My Report / Value Report)
+    // even though the job genuinely earned it on day one.
+    const initService = Number(parsedService.serviceCharge || 0);
+    const initIncome  = Number(parsedService.income || 0);
+    if (initService > 0 || initIncome > 0) {
+      const entryDate = parsedService.incomeDate
+        ? new Date(`${parsedService.incomeDate}T00:00:00`)
+        : new Date();
+      parsedService.revenueEntries = [{
+        date: entryDate,
+        service: initService,
+        spare: 0,
+        income: initIncome,
+        others: 0,
+      }];
+    }
+
     const newJob = new JobSheet({
       jobSheetNo,
       customer:          JSON.parse(customer || "{}"),

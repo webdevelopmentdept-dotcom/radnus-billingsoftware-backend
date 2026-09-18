@@ -136,10 +136,25 @@ exports.updateJobSheet = async (req, res) => {
 
     const revenueDayKey = revenueDate.toISOString().slice(0, 10);
 
-    const otherDayEntries = currentCycleEntries.filter(
-      e => !e.date || new Date(e.date).toISOString().slice(0, 10) !== revenueDayKey
-    );
+    // ✅ FIX — stale-entry bug: previously only TODAY's date-key was excluded from
+    // "other day" entries. If the user changes the Income Date itself (e.g. typed
+    // amount on 18 Sept, then corrected the date to 17 Sept), the OLD 18-Sept entry
+    // had a DIFFERENT date-key from the new 17-Sept save, so it was never excluded —
+    // it just sat there forever as an "unrelated other day" entry, permanently
+    // double-counting in every report. Now we also exclude whatever date-key the
+    // job's incomeDate WAS before this save (oldIncomeDateKey), so a changed date
+    // properly retires the old entry instead of leaving it behind as a duplicate.
+    const oldIncomeDateKey = oldService.incomeDate
+      ? new Date(oldService.incomeDate).toISOString().slice(0, 10)
+      : null;
 
+    const otherDayEntries = currentCycleEntries.filter((e) => {
+      if (!e.date) return true;
+      const key = new Date(e.date).toISOString().slice(0, 10);
+      if (key === revenueDayKey) return false;               // replaced by today's rebuilt entry
+      if (oldIncomeDateKey && key === oldIncomeDateKey) return false; // retire stale old-date entry
+      return true;
+    });
     const sumOtherDaysService = otherDayEntries.reduce((s, e) => s + Number(e.service || 0), 0);
     const sumOtherDaysIncome  = otherDayEntries.reduce((s, e) => s + Number(e.income  || 0), 0);
 
