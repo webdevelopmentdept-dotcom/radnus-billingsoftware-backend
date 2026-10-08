@@ -147,6 +147,14 @@ exports.updateJobSheet = async (req, res) => {
       ? new Date(oldService.incomeDate).toISOString().slice(0, 10)
       : null;
 
+    // ✅ FIX (JS-583) — Income Date mattum maathina (amount same) kooda ledger
+    // rebuild aaganum. Illana revenueChangedThisSave=false aagi entries touch
+    // aagaama, old-date row stale-ah nikkum, adutha amount-change save la
+    // double-count aagum. User incomeDate kudutha mattum, and DB la already
+    // oru incomeDate irundha mattum trigger — so old jobs re-date aagaadhu.
+    const newIncomeDateKey  = serviceData.incomeDate ? revenueDayKey : null;
+    const incomeDateChanged = !!newIncomeDateKey && !!oldIncomeDateKey && newIncomeDateKey !== oldIncomeDateKey;
+
     const otherDayEntries = currentCycleEntries.filter((e) => {
       if (!e.date) return true;
       const key = new Date(e.date).toISOString().slice(0, 10);
@@ -170,8 +178,11 @@ exports.updateJobSheet = async (req, res) => {
     // report the moment anyone touches that job again, months later.
     // ✅ FIX — only rebuild revenueEntries when serviceCharge or income
     // genuinely changed THIS save, compared to what was in the DB before.
+    // ✅ FIX (JS-583) — OR when the Income Date itself was changed.
     const revenueChangedThisSave =
-      targetService !== previousServiceCharge || targetIncome !== previousIncome;
+      targetService !== previousServiceCharge ||
+      targetIncome  !== previousIncome ||
+      incomeDateChanged;
 
     let newRevenueEntries;
     if (!revenueChangedThisSave) {
