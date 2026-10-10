@@ -90,6 +90,7 @@ app.use("/api/makes",      makeRoutes);
 app.use("/api/physical-conditions", require("./routes/physicalConditionRoutes"));
 app.use("/api/accessories",         require("./routes/accessoryRoutes"));
 app.use("/api/districts", districtRoutes);
+app.use("/api/ai", require("./routes/aiRoutes"));
 app.use("/api/taluks", talukRoutes);
 // ================= TEST EMAIL =================
 
