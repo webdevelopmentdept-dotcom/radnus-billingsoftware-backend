@@ -5,7 +5,8 @@ const bcrypt = require("bcrypt");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
-const sendEmail = require("./utils/sendEmail");
+// const sendEmail = require("./utils/sendEmail");
+const protect = require("./middleware/authMiddleware");
 
 const connectDB = require("./config/db");
 const makeRoutes = require("./routes/makeRoutes");
@@ -79,6 +80,10 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
+// ================= AUTH GUARD =================
+// Idhukku keela irukkura ELLA /api routes-kum valid login token kattayam.
+app.use("/api", protect);
+
 // ================= ROUTES =================
 app.use("/api/jobsheets",  require("./routes/jobSheetRoutes"));
 app.use("/api/models",     require("./routes/modelRoutes"));
@@ -97,23 +102,25 @@ app.use("/api/accessories",         require("./routes/accessoryRoutes"));
 app.use("/api/districts", districtRoutes);
 app.use("/api/ai", require("./routes/aiRoutes"));
 app.use("/api/taluks", talukRoutes);
-// ================= TEST EMAIL =================
-
 app.use("/api/spares", require("./routes/Spareroutes"));
-app.get("/test-email", async (req, res) => {
-  try {
-    await sendEmail(
-      "sarathadeviiayyappan@gmail.com",
-      "Radnus Email Test",
-      "Test email from Radnus Billing Software",
-      null
-    );
-    res.send("✅ Email sent successfully");
-  } catch (err) {
-    console.error(err);
-    res.send("❌ Email failed");
-  }
-});
+
+// ================= TEST EMAIL =================
+// app.get("/test-email", async (req, res) => {
+//   try {
+//     await sendEmail(
+//       "sarathadeviiayyappan@gmail.com",
+//       "Radnus Email Test",
+//       "Test email from Radnus Billing Software",
+//       null
+//     );
+//     res.send("✅ Email sent successfully");
+//   } catch (err) {
+//     console.error(err);
+//     res.send("❌ Email failed");
+//   }
+// });
+
+
 
 // ================= SERVER =================
 const PORT = process.env.PORT || 5000;
