@@ -28,6 +28,7 @@ const OthersItemSchema = new mongoose.Schema({
 const StatusLogSchema = new mongoose.Schema({
   status:    String,
   updatedBy: String,
+  note:      { type: String, default: "" },
   timestamp: { type: Date, default: Date.now }
 });
 

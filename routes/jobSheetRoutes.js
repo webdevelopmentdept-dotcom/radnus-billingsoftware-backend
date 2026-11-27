@@ -673,7 +673,7 @@ router.get("/customers/search", async (req, res) => {
     const { q, type } = req.query;
     if (!q || q.trim().length < 1) return res.json([]);
 
-    const searchRegex = new RegExp("^" + q.trim(), "i");
+    const searchRegex = new RegExp("^" + escapeRegex(q.trim()), "i");
 
     let matchQuery = {};
     if (type === "contact") {
