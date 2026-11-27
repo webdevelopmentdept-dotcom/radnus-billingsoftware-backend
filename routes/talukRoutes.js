@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const Taluk = require("../models/Taluk");
+const { adminOnly } = require("../middleware/roleMiddleware");
 
 // GET taluks for a district
 router.get("/:district", async (req, res) => {
@@ -14,7 +15,7 @@ router.get("/:district", async (req, res) => {
 });
 
 // POST new taluk (needs { name, district })
-router.post("/", async (req, res) => {
+router.post("/", adminOnly, async (req, res) => {
   try {
     const name = (req.body.name || "").trim();
     const district = (req.body.district || "").trim();
@@ -35,7 +36,7 @@ router.post("/", async (req, res) => {
 });
 
 // talukRoutes.js — add these below the existing GET/POST
-router.put("/:id", async (req, res) => {
+router.put("/:id", adminOnly, async (req, res) => {
   try {
     const name = (req.body.name || "").trim();
     if (!name) return res.status(400).json({ message: "Name required" });
@@ -46,7 +47,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", adminOnly, async (req, res) => {
   try {
     await Taluk.findByIdAndDelete(req.params.id);
     res.json({ message: "Deleted" });

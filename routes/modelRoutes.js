@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Model = require("../models/Model");
+const { adminOnly } = require("../middleware/roleMiddleware");
 
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -67,7 +68,7 @@ router.get("/search/:name", async (req, res) => {
 });
 
 // ================= UPDATE =================
-router.put("/:id", async (req, res) => {
+router.put("/:id", adminOnly, async (req, res) => {
   try {
     const { name, make } = req.body;
     const updated = await Model.findByIdAndUpdate(req.params.id, { name, make }, { new: true });
@@ -78,7 +79,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // ================= DELETE =================
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", adminOnly, async (req, res) => {
   try {
     await Model.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: "Deleted ✅" });

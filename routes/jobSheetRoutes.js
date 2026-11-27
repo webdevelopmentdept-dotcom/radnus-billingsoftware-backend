@@ -1,12 +1,13 @@
 const express = require("express");
-const router  = express.Router();
+const escapeRegex = (str) => String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const router = express.Router();
 
 const JobSheet = require("../models/JobSheet");
 const Feedback = require("../models/Feedback");
-const upload   = require("../middleware/upload");
+const upload = require("../middleware/upload");
 
 const generateInvoicePDF = require("../utils/generateInvoicePDF");
-const sendEmail          = require("../utils/sendEmail");
+const sendEmail = require("../utils/sendEmail");
 const { sendJobStatusWhatsApp } = require("../utils/sendWhatsApp"); // ✅ WhatsApp
 
 const {
@@ -129,14 +130,14 @@ router.get("/filter", async (req, res) => {
       }
       // Name — partial match
       else {
-        query["customer.name"] = { $regex: trimmed, $options: "i" };
+        query["customer.name"] = { $regex: escapeRegex(trimmed), $options: "i" };
       }
     }
     if (status) query["device.mobileStatus"] = status;
-    if (dealer) query["service.dealer"] = { $regex: dealer, $options: "i" };
+    if (dealer) query["service.dealer"] = { $regex: escapeRegex(dealer), $options: "i" };
 
     if (engineer) {
-      const engRegex = { $regex: engineer.trim(), $options: "i" };
+      const engRegex = { $regex: escapeRegex(engineer.trim()), $options: "i" };
       if (query.$or) {
         const textOr = query.$or;
         delete query.$or;
@@ -149,12 +150,7 @@ router.get("/filter", async (req, res) => {
       }
     }
 
-       // ✅ FIX — Date filter ஒரு field மேல மட்டும் apply ஆகும்: createdAt.
-    // முன்பு revenueEntries.date / spareItems.date-உம் சேர்த்து $or பண்ணி,
-    // Aug-ல create ஆன job Sep-ல rebill/spare-update ஆனா, அந்த job Sep
-    // filter-லயும் தெரிஞ்சு (Date column-ல Aug காட்டி) குழப்பம் தந்துச்சு.
-    // Income-ஐ date range-வாரியா பாக்க Value Report already இருக்கு —
-    // All Report இப்போ createdAt-ஐ மட்டும் strict-ஆ filter பண்ணும்.
+    // ✅ FIX — Date filter ஒரு field மேல மட்டும் apply ஆகும்: createdAt.
     if (fromDate || toDate) {
       const start = fromDate ? new Date(fromDate) : null;
       if (start) start.setHours(0, 0, 0, 0);
@@ -174,7 +170,7 @@ router.get("/filter", async (req, res) => {
       }
     }
 
-       const data = await JobSheet.find(query).sort({ createdAt: -1 });
+    const data = await JobSheet.find(query).sort({ createdAt: -1 });
 
     // Opt-in (?withFeedback=1), All Report ku mattum overall feedback rating
     if (req.query.withFeedback === "1") {
@@ -217,14 +213,6 @@ router.get("/next-number", async (req, res) => {
 
 /* =====================================================
    CREATE NEW JOB SHEET
-   (⭐ this is the ONLY create implementation — controller's createJobSheet
-   was dead code, never wired to a route, and has been removed to avoid
-   confusion/duplicate edits going forward.)
-
-   🔴 FIX (this file) — rawSpareItems was never destructured from req.body
-   and never assigned onto newJob, so Raw Spare items added on a BRAND NEW
-   job sheet (before the very first Save) were silently dropped and never
-   reached the DB at all. Now parsed + saved exactly like spareItems.
 ===================================================== */
 router.post("/", upload.single("idProofImage"), async (req, res) => {
   try {
@@ -241,12 +229,8 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
     parsedService.advanceItems = JSON.parse(advanceItems || "[]");
 
     // ✅ FIX — seed revenueEntries at creation too, mirroring updateJobSheet's rebuild.
-    // Without this, a job saved ONCE with Income/Service already filled never gets a
-    // ledger entry until someone later CHANGES the amount — silently dropping
-    // Service/Income from every Transaction-Date report (My Report / Value Report)
-    // even though the job genuinely earned it on day one.
     const initService = Number(parsedService.serviceCharge || 0);
-    const initIncome  = Number(parsedService.income || 0);
+    const initIncome = Number(parsedService.income || 0);
     if (initService > 0 || initIncome > 0) {
       const entryDate = parsedService.incomeDate
         ? new Date(`${parsedService.incomeDate}T00:00:00`)
@@ -262,17 +246,17 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
 
     const newJob = new JobSheet({
       jobSheetNo,
-      customer:          JSON.parse(customer || "{}"),
-      device:            JSON.parse(device || "{}"),
+      customer: JSON.parse(customer || "{}"),
+      device: JSON.parse(device || "{}"),
       physicalCondition: JSON.parse(physicalCondition || "[]"),
-      accessories:       JSON.parse(accessories || "[]"),
-      visualIssues:      JSON.parse(visualIssues || "[]"),
-      service:           parsedService,
-      spareItems:        JSON.parse(spareItems || "[]"),
-      rawSpareItems:      JSON.parse(rawSpareItems || "[]"),   // ✅ FIX — now actually saved
-          idProofType,
+      accessories: JSON.parse(accessories || "[]"),
+      visualIssues: JSON.parse(visualIssues || "[]"),
+      service: parsedService,
+      spareItems: JSON.parse(spareItems || "[]"),
+      rawSpareItems: JSON.parse(rawSpareItems || "[]"),   // ✅ FIX — now actually saved
+      idProofType,
       engineerStatus: ({ Received: "Received", Pending: "Repairing", Repaired: "Ready" })[JSON.parse(device || "{}").mobileStatus] || "Received",
-      createdBy:         JSON.parse(createdBy || "{}"),
+      createdBy: JSON.parse(createdBy || "{}"),
     });
 
     if (req.file) {
@@ -304,11 +288,6 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
 
 /* =====================================================
    MANUAL SEND WHATSAPP — triggered by the "Send WhatsApp" button on the
-   Job Sheet page. Re-sends the message for whatever Device Status the job
-   currently has, regardless of whether the status actually changed (unlike
-   the automatic triggers elsewhere in this file, which only fire on change).
-   Useful when the first automatic send failed (e.g. WHATSAPP_TOKEN was down)
-   or the shop just wants to manually remind a customer.
 ===================================================== */
 router.post("/:id/send-whatsapp", async (req, res) => {
   try {
@@ -343,37 +322,8 @@ router.post("/:id/send-whatsapp", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
-
-
-
 /* =====================================================
    REBILL — Reopen an invoiced job for re-repair
-
-   🔴 REWRITTEN (this file) — the snapshot now captures the FULL picture of
-   the cycle that's ending: income, balance, service charge, spare, raw
-   spare, others, advance, payment mode, engineer, drawer, dealer, service
-   rep, repair date, delivery date. Everything goes into rebillHistory so a
-   Rebill Report can show exactly what each past cycle looked like.
-
-   After the snapshot is taken, only the BILLING fields reset for the new
-   cycle — service charge, spare (baseline-based, stays 0 net), raw spare
-   (baseline-based, stays 0 net — this is NEW, see rawSpareBaseline below),
-   others (baseline-based), advance (baseline-based), income, balance, and
-   payment mode. Engineer / drawer / dealer / service rep / repair date /
-   delivery date are captured for the record but deliberately NOT reset —
-   they're assignment/scheduling fields, not billing fields, and a rebill
-   doesn't mean "reassign the job".
-
-   ✅ FIX — Balance and Payment Mode were never reset here before; they'd
-   carry the OLD cycle's numbers into the new cycle indefinitely. Now reset.
-
-   ✅ FIX — Raw Spare had no baseline/cycle-split concept at all (unlike
-   Spare/Others/Advance), so "Raw Spare (Shop)" always showed the FULL
-   lifetime total even right after a rebill. rawSpareBaseline now mirrors
-   spareBaseline exactly: rawSpareItems array stays cumulative (full
-   history, shown grayed-out as "Before Rebill" in the popup), but the
-   baseline snapshot makes the outer field's NET total show empty for the
-   new cycle until new raw spare items are added.
 ===================================================== */
 router.put("/:id/rebill", async (req, res) => {
   try {
@@ -382,24 +332,24 @@ router.put("/:id/rebill", async (req, res) => {
     if (!job) return res.status(404).json({ message: "Job not found" });
     if (!job.isInvoiced) return res.status(400).json({ message: "Job is not invoiced yet" });
 
-    const currentIncome      = Number(job.service?.income        || 0);
-    const currentService     = Number(job.service?.serviceCharge || 0);
-    const currentSpare       = Number(job.service?.spareCharge   || 0);
-    const currentOthers      = Number(job.service?.othersAmount  || 0);
-    const currentAdvance     = Number(job.service?.advanceAmount || 0);
-    const currentBalance     = Number(job.service?.balance       || 0);
+    const currentIncome = Number(job.service?.income || 0);
+    const currentService = Number(job.service?.serviceCharge || 0);
+    const currentSpare = Number(job.service?.spareCharge || 0);
+    const currentOthers = Number(job.service?.othersAmount || 0);
+    const currentAdvance = Number(job.service?.advanceAmount || 0);
+    const currentBalance = Number(job.service?.balance || 0);
     const currentBalanceDate = job.service?.balanceDate || null;
     const currentPaymentMode = job.service?.paymentMode || "";
-    const currentRemarks     = job.service?.remarks || "";
-    const currentStatus      = job.device?.mobileStatus || "";
+    const currentRemarks = job.service?.remarks || "";
+    const currentStatus = job.device?.mobileStatus || "";
 
     // ✅ Captured for the record only — these are assignment/schedule fields,
     // not billing fields, so they are NOT reset below.
-    const currentEngineer     = job.service?.engineer     || "";
-    const currentDrawer       = job.service?.drawer       || "";
-    const currentDealer       = job.service?.dealer       || "";
-    const currentServiceRep   = job.service?.serviceRep   || "";
-    const currentRepairDate   = job.service?.repairDate   || null;
+    const currentEngineer = job.service?.engineer || "";
+    const currentDrawer = job.service?.drawer || "";
+    const currentDealer = job.service?.dealer || "";
+    const currentServiceRep = job.service?.serviceRep || "";
+    const currentRepairDate = job.service?.repairDate || null;
     const currentDeliveryDate = job.service?.deliveryDate || null;
 
     // ✅ spareItems / othersItems / rawSpareItems arrays themselves are untouched
@@ -411,33 +361,33 @@ router.put("/:id/rebill", async (req, res) => {
     const rawSpareTotal = (job.rawSpareItems || []).reduce((s, it) => s + Number(it.amount || 0), 0);
 
     const beforeRebillSnapshot = {
-      rebilledAt:    new Date(),
-      rebilledBy:    rebilledBy || "admin",
-      income:        currentIncome,
-      incomeDate:    job.service?.incomeDate || null,
-      balance:       currentBalance,          // ✅ NEW — captured
-      balanceDate:   currentBalanceDate,      // ✅ NEW — captured
+      rebilledAt: new Date(),
+      rebilledBy: rebilledBy || "admin",
+      income: currentIncome,
+      incomeDate: job.service?.incomeDate || null,
+      balance: currentBalance,          // ✅ NEW — captured
+      balanceDate: currentBalanceDate,      // ✅ NEW — captured
       serviceCharge: currentService,
-      spareCharge:   currentSpare,
+      spareCharge: currentSpare,
       rawSpareCharge: rawSpareTotal,          // ✅ NEW — captured
-      othersAmount:  currentOthers,
+      othersAmount: currentOthers,
       advanceAmount: currentAdvance,
-      paymentMode:   currentPaymentMode,      // ✅ NEW — captured
-      engineer:      currentEngineer,         // ✅ NEW — captured (not reset)
-      drawer:        currentDrawer,           // ✅ NEW — captured (not reset)
-      dealer:        currentDealer,           // ✅ NEW — captured (not reset)
-      serviceRep:    currentServiceRep,       // ✅ NEW — captured (not reset)
-      repairDate:    currentRepairDate,       // ✅ NEW — captured (not reset)
-      deliveryDate:  currentDeliveryDate,     // ✅ NEW — captured (not reset)
-      remarks:       currentRemarks,
-      status:        currentStatus,
+      paymentMode: currentPaymentMode,      // ✅ NEW — captured
+      engineer: currentEngineer,         // ✅ NEW — captured (not reset)
+      drawer: currentDrawer,           // ✅ NEW — captured (not reset)
+      dealer: currentDealer,           // ✅ NEW — captured (not reset)
+      serviceRep: currentServiceRep,       // ✅ NEW — captured (not reset)
+      repairDate: currentRepairDate,       // ✅ NEW — captured (not reset)
+      deliveryDate: currentDeliveryDate,     // ✅ NEW — captured (not reset)
+      remarks: currentRemarks,
+      status: currentStatus,
     };
 
     await JobSheet.findByIdAndUpdate(req.params.id, {
       $set: {
         isInvoiced: false,
         rebillPending: true,
-              "device.mobileStatus": "Received",
+        "device.mobileStatus": "Received",
         engineerStatus: "Received",
         "service.serviceCharge": 0,
         "service.spareCharge": spareTotal,
@@ -486,31 +436,8 @@ router.put("/:id/rebill", async (req, res) => {
   }
 });
 
-
-
-
-
-
-
-
-
-
-
 /* =====================================================
    MANUAL JOB SHEET INSERT (specific number)
-   NOTE: no WhatsApp trigger here on purpose — this is for backfilling old/manual
-   jobs, not new intake, so customers shouldn't get a notification for it. If you
-   want customers notified here too, add a sendJobStatusWhatsApp() call after save,
-   same pattern as the routes above.
-
-   🔴 FIX (this file) — this route was completely broken: it destructured
-   individual flat fields (customerName, contact, make, model, issue...) from
-   req.body, but then tried to build newJob from `customer`, `device`,
-   `physicalCondition`, `service`, `spareItems`, `idProofType`, `createdBy` —
-   none of which were ever defined, so this route would throw a
-   ReferenceError on every call. Rewritten to actually use the fields it
-   receives, matching the flat shape the destructuring implies, and now also
-   saves rawSpareItems if sent.
 ===================================================== */
 router.post('/manual-insert', async (req, res) => {
   try {
@@ -529,7 +456,7 @@ router.post('/manual-insert', async (req, res) => {
     const newJob = new JobSheet({
       jobSheetNo,
       customer: { name: customerName, contact },
-      device:   { make, model },
+      device: { make, model },
       visualIssues: issue ? [issue] : [],
       service: {
         engineer, serviceRep,
@@ -631,7 +558,7 @@ router.get("/salesrep-report", async (req, res) => {
     const query = {};
 
     if (salesRep) {
-      query["service.serviceRep"] = { $regex: salesRep.trim(), $options: "i" };
+     query["service.serviceRep"] = { $regex: escapeRegex(salesRep.trim()), $options: "i" };
     }
 
     if (fromDate || toDate) {
@@ -648,7 +575,7 @@ router.get("/salesrep-report", async (req, res) => {
       }
     }
 
-        const jobs = await JobSheet.find(query).sort({ createdAt: -1 });
+    const jobs = await JobSheet.find(query).sort({ createdAt: -1 });
 
     // Opt-in (?withFeedback=1), overall feedback rating
     let ratingOf = null;
@@ -691,13 +618,13 @@ router.put("/:id/invoice", async (req, res) => {
     const finalStatus =
       currentStatus === "Delivered NR/NA" ? "Delivered NR/NA" : "Delivered";
 
-     const updated = await JobSheet.findByIdAndUpdate(
+    const updated = await JobSheet.findByIdAndUpdate(
       req.params.id,
       {
         isInvoiced: true,
         rebillPending: false,   // ✅ FIX — invoice பண்றது rebill cycle-ஐ முடிச்சிடும்.
-                                 // Update click பண்ணாம நேரடியா Invoice பண்ணினாலும்
-                                 // "Save Rebill" label அடுத்த தடவை தப்பா காட்டாம இருக்க.
+        // Update click பண்ணாம நேரடியா Invoice பண்ணினாலும்
+        // "Save Rebill" label அடுத்த தடவை தப்பா காட்டாம இருக்க.
         "device.mobileStatus": finalStatus,
       },
       { new: true }
@@ -761,14 +688,14 @@ router.get("/customers/search", async (req, res) => {
       {
         $group: {
           _id: { name: "$customer.name", contact: "$customer.contact" },
-          name:         { $first: "$customer.name" },
-          contact:      { $first: "$customer.contact" },
-          altContact:   { $first: "$customer.altContact" },
-          address:      { $first: "$customer.address" },
-          email:        { $first: "$customer.email" },
-          instaValues:  { $push: "$service.instaFollowers" },
+          name: { $first: "$customer.name" },
+          contact: { $first: "$customer.contact" },
+          altContact: { $first: "$customer.altContact" },
+          address: { $first: "$customer.address" },
+          email: { $first: "$customer.email" },
+          instaValues: { $push: "$service.instaFollowers" },
           googleValues: { $push: "$service.googleReview" },
-          lastJobDate:  { $first: "$createdAt" }
+          lastJobDate: { $first: "$createdAt" }
         }
       },
       {
@@ -819,17 +746,17 @@ router.put("/:id/cancel", async (req, res) => {
     const updated = await JobSheet.findByIdAndUpdate(
       req.params.id,
       {
-        isCancelled:           true,
-        cancelRemarks:         cancelRemarks.trim(),
-        cancelledBy:           cancelledBy || "admin",
-        cancelledAt:           new Date(),
+        isCancelled: true,
+        cancelRemarks: cancelRemarks.trim(),
+        cancelledBy: cancelledBy || "admin",
+        cancelledAt: new Date(),
         "device.mobileStatus": "Cancelled",
         $push: {
           statusLogs: {
-            status:    "Cancelled",
+            status: "Cancelled",
             updatedBy: cancelledBy || "admin",
             timestamp: new Date(),
-            note:      cancelRemarks.trim(),
+            note: cancelRemarks.trim(),
           },
         },
       },

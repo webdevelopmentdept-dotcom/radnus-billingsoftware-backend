@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const District = require("../models/District");
+const { adminOnly } = require("../middleware/roleMiddleware");
 
 // GET all districts
 router.get("/", async (req, res) => {
@@ -14,7 +15,7 @@ router.get("/", async (req, res) => {
 });
 
 // POST new district
-router.post("/", async (req, res) => {
+router.post("/", adminOnly, async (req, res) => {
   try {
     const name = (req.body.name || "").trim();
     if (!name) return res.status(400).json({ message: "District name required" });
@@ -31,7 +32,7 @@ router.post("/", async (req, res) => {
 });
 
 // districtRoutes.js — add these below the existing GET/POST
-router.put("/:id", async (req, res) => {
+router.put("/:id", adminOnly, async (req, res) => {
   try {
     const name = (req.body.name || "").trim();
     if (!name) return res.status(400).json({ message: "Name required" });
@@ -42,7 +43,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", adminOnly, async (req, res) => {
   try {
     const district = await District.findByIdAndDelete(req.params.id);
     if (district) await Taluk.deleteMany({ district: district.name }); // cascade delete its taluks

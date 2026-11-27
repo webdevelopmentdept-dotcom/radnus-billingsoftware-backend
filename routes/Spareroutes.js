@@ -1,4 +1,5 @@
 const express = require("express");
+const escapeRegex = (str) => String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const router = express.Router();
 const Spare = require("../models/Spare");
 
@@ -18,7 +19,7 @@ router.post("/", async (req, res) => {
 
     // Avoid duplicate spares (case-insensitive)
     const existing = await Spare.findOne({
-      name: { $regex: `^${name.trim()}$`, $options: "i" },
+      name: { $regex: `^${escapeRegex(name.trim())}$`, $options: "i" },
     });
     if (existing) return res.json(existing);
 

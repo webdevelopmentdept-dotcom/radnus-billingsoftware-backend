@@ -1,6 +1,7 @@
 const generatePDF = require("../utils/generatePDF");
 const sendEmail = require("../utils/sendEmail");
 const JobSheet = require("../models/JobSheet");
+const escapeRegex = (str) => String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const { sendJobStatusWhatsApp } = require("../utils/sendWhatsApp"); // ✅ WhatsApp
 /* ================= GET ALL ================= */
 exports.getJobSheets = async (req, res) => {
@@ -54,14 +55,14 @@ exports.updateJobSheet = async (req, res) => {
     const oldMobileStatus = job.device?.mobileStatus || "";
 
     // ✅ Parse all JSON fields
-    const serviceData        = typeof req.body.service === "string"          ? JSON.parse(req.body.service)          : (req.body.service          || {});
+    const serviceData = typeof req.body.service === "string" ? JSON.parse(req.body.service) : (req.body.service || {});
 
-    const customerData       = typeof req.body.customer === "string"         ? JSON.parse(req.body.customer)         : (req.body.customer         || {});
-    const deviceData         = typeof req.body.device === "string"           ? JSON.parse(req.body.device)           : (req.body.device           || {});
-    const physicalCondition  = typeof req.body.physicalCondition === "string"? JSON.parse(req.body.physicalCondition): (req.body.physicalCondition || []);
-    const accessories        = typeof req.body.accessories === "string"      ? JSON.parse(req.body.accessories)      : (req.body.accessories       || []);
-    const visualIssues       = typeof req.body.visualIssues === "string"     ? JSON.parse(req.body.visualIssues)     : (req.body.visualIssues      || []);
-    const spareItems         = typeof req.body.spareItems === "string"       ? JSON.parse(req.body.spareItems)       : (req.body.spareItems        || []);
+    const customerData = typeof req.body.customer === "string" ? JSON.parse(req.body.customer) : (req.body.customer || {});
+    const deviceData = typeof req.body.device === "string" ? JSON.parse(req.body.device) : (req.body.device || {});
+    const physicalCondition = typeof req.body.physicalCondition === "string" ? JSON.parse(req.body.physicalCondition) : (req.body.physicalCondition || []);
+    const accessories = typeof req.body.accessories === "string" ? JSON.parse(req.body.accessories) : (req.body.accessories || []);
+    const visualIssues = typeof req.body.visualIssues === "string" ? JSON.parse(req.body.visualIssues) : (req.body.visualIssues || []);
+    const spareItems = typeof req.body.spareItems === "string" ? JSON.parse(req.body.spareItems) : (req.body.spareItems || []);
 
     // ✅ NEW — never let a spare item silently lose or regain its date on a
     // routine Update. Match each incoming item to the job's EXISTING spare item
@@ -103,7 +104,7 @@ exports.updateJobSheet = async (req, res) => {
     // save actually changed the money, or was just a status/remarks/engineer
     // edit that happened to re-submit the same amounts.
     const previousServiceCharge = Number(oldService.serviceCharge || 0);
-    const previousIncome        = Number(oldService.income        || 0);
+    const previousIncome = Number(oldService.income || 0);
 
     // ✅ Use manually selected Income Date instead of always using today's date.
     const revenueDate = serviceData.incomeDate
@@ -144,7 +145,7 @@ exports.updateJobSheet = async (req, res) => {
     // aagaama, old-date row stale-ah nikkum, adutha amount-change save la
     // double-count aagum. User incomeDate kudutha mattum, and DB la already
     // oru incomeDate irundha mattum trigger — so old jobs re-date aagaadhu.
-    const newIncomeDateKey  = serviceData.incomeDate ? revenueDayKey : null;
+    const newIncomeDateKey = serviceData.incomeDate ? revenueDayKey : null;
     const incomeDateChanged = !!newIncomeDateKey && !!oldIncomeDateKey && newIncomeDateKey !== oldIncomeDateKey;
 
     const otherDayEntries = currentCycleEntries.filter((e) => {
@@ -155,10 +156,10 @@ exports.updateJobSheet = async (req, res) => {
       return true;
     });
     const sumOtherDaysService = otherDayEntries.reduce((s, e) => s + Number(e.service || 0), 0);
-    const sumOtherDaysIncome  = otherDayEntries.reduce((s, e) => s + Number(e.income  || 0), 0);
+    const sumOtherDaysIncome = otherDayEntries.reduce((s, e) => s + Number(e.income || 0), 0);
 
     const targetService = Number(serviceData.serviceCharge || 0);
-    const targetIncome  = Number(serviceData.income || 0);
+    const targetIncome = Number(serviceData.income || 0);
 
     // ================= REVENUE-CHANGE GUARD (NEW) =================
     // 🔴 THE REAL BUG: revenueEntries used to get rebuilt on EVERY save, even
@@ -173,7 +174,7 @@ exports.updateJobSheet = async (req, res) => {
     // ✅ FIX (JS-583) — OR when the Income Date itself was changed.
     const revenueChangedThisSave =
       targetService !== previousServiceCharge ||
-      targetIncome  !== previousIncome ||
+      targetIncome !== previousIncome ||
       incomeDateChanged;
 
     let newRevenueEntries;
@@ -187,7 +188,7 @@ exports.updateJobSheet = async (req, res) => {
       // current total — this is what makes same-day corrections self-heal
       // instead of leaving a stale extra row behind.
       const todayService = Math.max(0, targetService - sumOtherDaysService);
-      const todayIncome  = Math.max(0, targetIncome  - sumOtherDaysIncome);
+      const todayIncome = Math.max(0, targetIncome - sumOtherDaysIncome);
 
       const rebuiltCurrentCycle = [...otherDayEntries];
       if (todayService > 0 || todayIncome > 0) {
@@ -205,58 +206,58 @@ exports.updateJobSheet = async (req, res) => {
 
     // ✅ Build update — service object EXPLICIT-ஆ (எந்த field-உம் miss ஆகாது)
     const updateData = {
-      jobSheetNo:        req.body.jobSheetNo,
-      customer:          customerData,
-      device:            { ...deviceData, idProofType: req.body.idProofType },
+      jobSheetNo: req.body.jobSheetNo,
+      customer: customerData,
+      device: { ...deviceData, idProofType: req.body.idProofType },
       physicalCondition,
       accessories,
       visualIssues,
-       spareItems: spareItemsWithPreservedDates,   // ✅ CHANGED — was just "spareItems"
-      rawSpareItems: rawSpareItemsWithPreservedDates,  
+      spareItems: spareItemsWithPreservedDates,   // ✅ CHANGED — was just "spareItems"
+      rawSpareItems: rawSpareItemsWithPreservedDates,
       service: {
-        engineer:       serviceData.engineer       || "",
+        engineer: serviceData.engineer || "",
         softwareEngineer: serviceData.softwareEngineer || "",
-        dealer:         serviceData.dealer         || "",
-        drawer:         serviceData.drawer         || "",
-        serviceRep:     serviceData.serviceRep     || "",
-        serviceCharge:  Number(serviceData.serviceCharge  || 0),
-        spareCharge:    Number(serviceData.spareCharge    || 0),
+        dealer: serviceData.dealer || "",
+        drawer: serviceData.drawer || "",
+        serviceRep: serviceData.serviceRep || "",
+        serviceCharge: Number(serviceData.serviceCharge || 0),
+        spareCharge: Number(serviceData.spareCharge || 0),
         // ✅ FIX — spareBaseline (snapshotted by the /rebill route) MUST be carried
         // through every normal Update too. This object lists every service.* field
         // explicitly, so any field left out here gets silently wiped to undefined
         // on the next Update — which would erase the rebill-cycle spare baseline
         // and bring back the wrong Service Charge auto-calc bug.
-        spareBaseline:  Number(serviceData.spareBaseline  || 0),
+        spareBaseline: Number(serviceData.spareBaseline || 0),
         // ✅ FIX — rawSpareBaseline was missing from this explicit list entirely, so
         // every normal Update silently wiped the rebill-cycle Raw Spare baseline
         // back to undefined → 0, making the Raw Spare field show its FULL lifetime
         // total again the moment anyone hit Update after a rebill.
         rawSpareBaseline: Number(serviceData.rawSpareBaseline || 0),
-        income:         Number(serviceData.income  || 0),
-        incomeDate:     serviceData.incomeDate     || null,
-        balance:        Number(serviceData.balance || 0),
-        balanceDate:    serviceData.balanceDate    || null,
-        othersAmount:   Number(serviceData.othersAmount || 0),
-        othersItems:    serviceData.othersItems || [],
-        paymentMode:    serviceData.paymentMode    || "",
-        repairDate:     serviceData.repairDate     || null,
-        deliveryDate:   serviceData.deliveryDate   || null,
-        advanceAmount:  Number(serviceData.advanceAmount  || 0),
+        income: Number(serviceData.income || 0),
+        incomeDate: serviceData.incomeDate || null,
+        balance: Number(serviceData.balance || 0),
+        balanceDate: serviceData.balanceDate || null,
+        othersAmount: Number(serviceData.othersAmount || 0),
+        othersItems: serviceData.othersItems || [],
+        paymentMode: serviceData.paymentMode || "",
+        repairDate: serviceData.repairDate || null,
+        deliveryDate: serviceData.deliveryDate || null,
+        advanceAmount: Number(serviceData.advanceAmount || 0),
         // ✅ FIX — advanceDate was missing from this explicit list entirely, so it
         // was silently wiped to undefined on every normal Update.
-        advanceDate:    serviceData.advanceDate    || null,
-           advanceBaseline: Number(serviceData.advanceBaseline || 0),  
-                 othersBaseline: Number(serviceData.othersBaseline || 0),   
-        advanceItems:   advanceItems,
-        margin:         Number(serviceData.margin  || 0),
+        advanceDate: serviceData.advanceDate || null,
+        advanceBaseline: Number(serviceData.advanceBaseline || 0),
+        othersBaseline: Number(serviceData.othersBaseline || 0),
+        advanceItems: advanceItems,
+        margin: Number(serviceData.margin || 0),
         instaFollowers: serviceData.instaFollowers || "",
-        googleReview:   serviceData.googleReview   || "",
-        remarks:        serviceData.remarks        || "",
+        googleReview: serviceData.googleReview || "",
+        remarks: serviceData.remarks || "",
         revenueEntries: newRevenueEntries,
       },
     };
 
-      if (req.file) {
+    if (req.file) {
       updateData.idProofImage = { url: req.file.path, public_id: req.file.filename };
     }
 
@@ -386,8 +387,8 @@ exports.getUserReport = async (req, res) => {
     if (jobSheetNo && jobSheetNo.trim()) {
       const q = jobSheetNo.trim();
       query.$or = [
-        { "service.serviceRep": { $regex: q, $options: "i" } },
-        { jobSheetNo:           { $regex: q, $options: "i" } },
+        { "service.serviceRep": { $regex: escapeRegex(q), $options: "i" } },
+        { jobSheetNo: { $regex: escapeRegex(q), $options: "i" } },
       ];
     }
 

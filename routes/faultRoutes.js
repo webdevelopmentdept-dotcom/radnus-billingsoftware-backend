@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Fault = require("../models/Fault");
+const { adminOnly } = require("../middleware/roleMiddleware");
 
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -47,13 +48,13 @@ router.post("/", async (req, res) => {
 });
 
 // UPDATE fault
-router.put("/:id", async (req, res) => {
+router.put("/:id", adminOnly, async (req, res) => {
   const updated = await Fault.findByIdAndUpdate(req.params.id, req.body, { new: true });
   res.json(updated);
 });
 
 // DELETE fault
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", adminOnly, async (req, res) => {
   await Fault.findByIdAndDelete(req.params.id);
   res.json({ message: "Deleted" });
 });

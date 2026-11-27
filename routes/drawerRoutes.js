@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Drawer = require("../models/Drawer");
+const { adminOnly } = require("../middleware/roleMiddleware");
 
 // GET
 router.get("/", async (req, res) => {
@@ -9,7 +10,7 @@ router.get("/", async (req, res) => {
 });
 
 // ADD
-router.post("/", async (req, res) => {
+router.post("/", adminOnly, async (req, res) => {
   const { name } = req.body;
 
   const newDrawer = new Drawer({ name });
@@ -19,7 +20,7 @@ router.post("/", async (req, res) => {
 });
 
 // UPDATE
-router.put("/:id", async (req, res) => {
+router.put("/:id", adminOnly, async (req, res) => {
   const updated = await Drawer.findByIdAndUpdate(
     req.params.id,
     req.body,
@@ -30,7 +31,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", adminOnly, async (req, res) => {
   await Drawer.findByIdAndDelete(req.params.id);
   res.json({ message: "Deleted" });
 });

@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
+const { adminOnly } = require("../middleware/roleMiddleware");
 
 // ── Inline Schema (separate model file தேவையில்ல) ──
 let SalesRep;
@@ -23,7 +24,7 @@ router.get("/", async (req, res) => {
 });
 
 // CREATE
-router.post("/", async (req, res) => {
+router.post("/", adminOnly, async (req, res) => {
   try {
     const name = req.body.name?.trim();
     if (!name) return res.status(400).json({ message: "Name required" });
@@ -39,7 +40,7 @@ router.post("/", async (req, res) => {
 });
 
 // DELETE
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", adminOnly, async (req, res) => {
   try {
     await SalesRep.findByIdAndDelete(req.params.id);
     res.json({ message: "Deleted ✅" });

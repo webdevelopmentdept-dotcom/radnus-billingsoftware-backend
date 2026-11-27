@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Make = require("../models/Make");
+const { adminOnly } = require("../middleware/roleMiddleware");
 
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -68,7 +69,7 @@ router.get("/search/:name", async (req, res) => {
 });
 
 /* ================= ✏ UPDATE ================= */
-router.put("/:id", async (req, res) => {
+router.put("/:id", adminOnly, async (req, res) => {
   try {
     const { name } = req.body;
     const updated = await Make.findByIdAndUpdate(req.params.id, { name }, { new: true });
@@ -79,7 +80,7 @@ router.put("/:id", async (req, res) => {
 });
 
 /* ================= 🗑 DELETE ================= */
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", adminOnly, async (req, res) => {
   try {
     await Make.findByIdAndDelete(req.params.id);
     res.json({ success: true });
