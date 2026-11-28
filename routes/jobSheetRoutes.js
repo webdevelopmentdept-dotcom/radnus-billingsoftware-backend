@@ -5,6 +5,9 @@ const router = express.Router();
 const JobSheet = require("../models/JobSheet");
 const Feedback = require("../models/Feedback");
 const upload = require("../middleware/upload");
+const storeScope = require("../middleware/storeScope");
+const { allocateJobNumber, releaseJobNumber, peekNextNumber } = require("../utils/jobNumber");
+const { engineerLimits } = require("../middleware/roleLimits");
 
 const generateInvoicePDF = require("../utils/generateInvoicePDF");
 const sendEmail = require("../utils/sendEmail");
@@ -30,6 +33,23 @@ const getEngineerLoad = async (name) => {
   return count;
 };
 
+router.use(storeScope);
+
+router.use(engineerLimits);
+
+router.param("id", async (req, res, next, id) => {
+  try {
+    if (!require("mongoose").isValidObjectId(id)) return next();   // handler-e error kudukkum
+    const job = await JobSheet.findById(id).select("storeId").lean();
+    if (job && !storeScope.canAccess(req, job)) {
+      return res.status(404).json({ message: "Job sheet not found ❌" });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get("/user-report", getUserReport);
 
 /* =====================================================
@@ -40,7 +60,7 @@ router.get("/workload", async (req, res) => {
     const activeJobs = await JobSheet.find({
       "device.mobileStatus": { $nin: ["Delivered", "Delivered NR/NA", "Repaired"] },
       isInvoiced: { $ne: true },
-    }).select("service.engineer");
+    }).find(storeScope.cond(req)).select("service.engineer");   // Phase 2B scope
 
     const countMap = {};
     for (const job of activeJobs) {
@@ -66,8 +86,7 @@ router.get("/stale", async (req, res) => {
       "service.drawer": { $nin: ["Return"] },   // ✅ Return drawer exclude
       isCancelled: { $ne: true },               // ✅ Cancelled jobs exclude
       isInvoiced: { $ne: true }
-    }).select("jobSheetNo customer device service statusLogs repairSteps createdAt");
-
+    }).find(storeScope.cond(req)).select("jobSheetNo customer device service statusLogs repairSteps createdAt");   // Phase 2B scope
     const staleJobs = [];
     for (const job of jobs) {
       const dates = [new Date(job.createdAt)];
@@ -113,12 +132,13 @@ router.get("/filter", async (req, res) => {
       const trimmed = q.trim();
 
       // Job Sheet No — exact match (234 → JS-234, or JS-234 directly)
-      const isJobNo = /^\d{1,4}$/.test(trimmed) || /^JS-\d+$/i.test(trimmed);
+      const isJobNo = /^\d{1,5}$/.test(trimmed) || /^[A-Za-z][A-Za-z0-9]{1,7}-\d+$/.test(trimmed);   // Phase 3: JS-1219 / PDY01-0001 / 1219
       if (isJobNo) {
-        const normalized = /^JS-/i.test(trimmed)
+        const normalized = /-/.test(trimmed)
           ? trimmed.toUpperCase()
           : `JS-${trimmed.padStart(3, "0")}`;
-        query.jobSheetNo = normalized;
+        // full number -> exact; number mattum (1219) -> ethu store-aanaalum andha number (scope-kulla)
+        query.jobSheetNo = /-/.test(trimmed) ? normalized : { $regex: `^[A-Z0-9]+-0*${Number(trimmed)}$` };
       }
       // IMEI — exact 15 digit match
       else if (/^\d{15}$/.test(trimmed)) {
@@ -170,7 +190,7 @@ router.get("/filter", async (req, res) => {
       }
     }
 
-    const data = await JobSheet.find(query).sort({ createdAt: -1 });
+    const data = await JobSheet.find(storeScope.and(req, query)).sort({ createdAt: -1 });   // Phase 2B scope
 
     // Opt-in (?withFeedback=1), All Report ku mattum overall feedback rating
     if (req.query.withFeedback === "1") {
@@ -197,8 +217,27 @@ router.get("/filter", async (req, res) => {
 /* =====================================================
    NEXT JOB NUMBER
 ===================================================== */
+// router.get("/next-number", async (req, res) => {
+//   try {
+//     const allJobs = await JobSheet.find().select("jobSheetNo");
+//     if (!allJobs.length) return res.json({ next: "JS-001" });
+//     const numbers = allJobs.map(job => {
+//       const num = parseInt(String(job.jobSheetNo).replace(/\D/g, ""));
+//       return isNaN(num) ? 0 : num;
+//     });
+//     return res.json({ next: `JS-${String(Math.max(...numbers) + 1).padStart(3, "0")}` });
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// });
+
 router.get("/next-number", async (req, res) => {
   try {
+    // Phase 3: store-wise preview (counter-a increase pannaadhu; real number save-la dhaan)
+    const peek = await peekNextNumber(req);
+    if (peek) return res.json({ next: peek });
+
+    // legacy fallback (store seed illa) — pazhaya vazhi
     const allJobs = await JobSheet.find().select("jobSheetNo");
     if (!allJobs.length) return res.json({ next: "JS-001" });
     const numbers = allJobs.map(job => {
@@ -215,9 +254,10 @@ router.get("/next-number", async (req, res) => {
    CREATE NEW JOB SHEET
 ===================================================== */
 router.post("/", upload.single("idProofImage"), async (req, res) => {
+  let alloc = null;
   try {
     const {
-      jobSheetNo, customer, device, physicalCondition,
+      jobSheetNo: clientJobNo, customer, device, physicalCondition,
       accessories, advanceItems, visualIssues, service,
       spareItems, rawSpareItems, idProofType, createdBy   // ✅ rawSpareItems added
     } = req.body;
@@ -225,6 +265,11 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
     // advanceItems comes as its own FormData field from the frontend, but the
     // schema expects it nested inside "service". Merge it in here, otherwise it
     // silently gets dropped and Advance Report shows nothing.
+
+    // Phase 3: number server-la atomic-a edukkum (client number-a nambaadhu). null = legacy -> pazhaya vazhi
+    alloc = await allocateJobNumber(req);
+    const jobSheetNo = alloc ? alloc.jobSheetNo : clientJobNo;
+
     const parsedService = JSON.parse(service || "{}");
     parsedService.advanceItems = JSON.parse(advanceItems || "[]");
 
@@ -254,6 +299,7 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
       service: parsedService,
       spareItems: JSON.parse(spareItems || "[]"),
       rawSpareItems: JSON.parse(rawSpareItems || "[]"),   // ✅ FIX — now actually saved
+      storeId: storeScope.stampId(req),
       idProofType,
       engineerStatus: ({ Received: "Received", Pending: "Repairing", Repaired: "Ready" })[JSON.parse(device || "{}").mobileStatus] || "Received",
       createdBy: JSON.parse(createdBy || "{}"),
@@ -281,7 +327,8 @@ router.post("/", upload.single("idProofImage"), async (req, res) => {
 
     res.json({ message: "Job Sheet Saved ✅", job: newJob });
   } catch (err) {
-    console.error("CREATE JOBSHEET ERROR:", err);
+        console.error("CREATE JOBSHEET ERROR:", err);
+    try { await releaseJobNumber(alloc); } catch (_) { }   // Phase 3: save fail -> number thirumba
     res.status(500).json({ message: err.message });
   }
 });
@@ -458,6 +505,7 @@ router.post('/manual-insert', async (req, res) => {
       customer: { name: customerName, contact },
       device: { make, model },
       visualIssues: issue ? [issue] : [],
+      storeId: storeScope.stampId(req),
       service: {
         engineer, serviceRep,
         serviceCharge: Number(serviceCharge || 0),
@@ -558,7 +606,7 @@ router.get("/salesrep-report", async (req, res) => {
     const query = {};
 
     if (salesRep) {
-     query["service.serviceRep"] = { $regex: escapeRegex(salesRep.trim()), $options: "i" };
+      query["service.serviceRep"] = { $regex: escapeRegex(salesRep.trim()), $options: "i" };
     }
 
     if (fromDate || toDate) {
@@ -575,7 +623,7 @@ router.get("/salesrep-report", async (req, res) => {
       }
     }
 
-    const jobs = await JobSheet.find(query).sort({ createdAt: -1 });
+    const jobs = await JobSheet.find(storeScope.and(req, query)).sort({ createdAt: -1 });
 
     // Opt-in (?withFeedback=1), overall feedback rating
     let ratingOf = null;
@@ -683,7 +731,7 @@ router.get("/customers/search", async (req, res) => {
     }
 
     const customers = await JobSheet.aggregate([
-      { $match: matchQuery },
+      { $match: storeScope.and(req, matchQuery) },
       { $sort: { createdAt: -1 } },
       {
         $group: {

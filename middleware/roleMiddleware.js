@@ -6,6 +6,13 @@ exports.adminOnly = (req, res, next) => {
   res.status(403).json({ message: "Admin only" });
 };
 
+// Phase 2D: Admin (or) Store Manager
+exports.adminOrManager = (req, res, next) => {
+  const r = req.user?.role;
+  if (r === "admin" || r === "storeManager") return next();
+  res.status(403).json({ message: "Admin or Store Manager only" });
+};
+
 // Feedback access: admin (or) user role + feedbackAccess != none
 // DB la irundhu paakkurom, so admin toggle maathina udane velai seiyum (re-login venaam)
 exports.feedbackAccess = async (req, res, next) => {

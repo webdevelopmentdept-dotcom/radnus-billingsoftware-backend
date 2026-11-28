@@ -124,6 +124,7 @@ app.use("/api/districts", districtRoutes);
 app.use("/api/ai", require("./routes/aiRoutes"));
 app.use("/api/taluks", talukRoutes);
 app.use("/api/spares", require("./routes/Spareroutes"));
+app.use("/api/stores", require("./routes/storeRoutes"));
 
 // ================= TEST EMAIL =================
 // app.get("/test-email", async (req, res) => {
@@ -140,9 +141,6 @@ app.use("/api/spares", require("./routes/Spareroutes"));
 //     res.send("❌ Email failed");
 //   }
 // });
-
-
-
 // ================= SERVER =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

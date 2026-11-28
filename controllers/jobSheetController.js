@@ -3,6 +3,7 @@ const sendEmail = require("../utils/sendEmail");
 const JobSheet = require("../models/JobSheet");
 const escapeRegex = (str) => String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const { sendJobStatusWhatsApp } = require("../utils/sendWhatsApp"); // ✅ WhatsApp
+const storeScope = require("../middleware/storeScope"); 
 /* ================= GET ALL ================= */
 exports.getJobSheets = async (req, res) => {
 
@@ -406,7 +407,7 @@ exports.getUserReport = async (req, res) => {
       }
     }
 
-    const jobs = await JobSheet.find(query).sort({ createdAt: -1 });
+    const jobs = await JobSheet.find(storeScope.and(req, query)).sort({ createdAt: -1 });
 
     const grouped = {};
     for (const job of jobs) {

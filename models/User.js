@@ -11,7 +11,8 @@ const userSchema = new mongoose.Schema({
     enum: ["none", "with_billing", "only"],
     default: "none"
   },
-  linkedRep: { type: String, default: "" }   // SalesRep name (Service Rep link)
+  linkedRep: { type: String, default: "" },   // SalesRep name (Service Rep link)
+  storeId: { type: mongoose.Schema.Types.ObjectId, ref: "Store" }
 });
 
 module.exports = mongoose.model("User", userSchema);
